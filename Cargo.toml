@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "tavern_pathfinder",
+    "tavern_server",
+]
