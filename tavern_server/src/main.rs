@@ -1,3 +1,4 @@
+use tavern_server::auth::Argon2Opt;
 use tavern_server::db::PostgreSQLOpt;
 use structopt::StructOpt;
 
@@ -6,6 +7,8 @@ use structopt::StructOpt;
 struct Config {
     #[structopt(flatten)]
     database: PostgreSQLOpt,
+    #[structopt(flatten)]
+    argon2: Argon2Opt,
 }
 
 fn main() {
