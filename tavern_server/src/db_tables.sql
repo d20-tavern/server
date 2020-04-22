@@ -144,6 +144,15 @@ CREATE TYPE MagicSchool AS ENUM (
 	'Transmutation'
 );
 
+CREATE TYPE SpellRange AS ENUM (
+	'Personal',
+	'Touch',
+	'Close',
+	'Medium',
+	'Long',
+	'Unlimited'
+);
+
 CREATE TYPE WeaponClass AS ENUM (
 	'Axes', 
 	'Heavy Blades', 
@@ -269,7 +278,7 @@ CREATE TABLE UserInfo (
 
         time_cost   		INT,
         memory      		INT,
-        threads     		INT,
+        threads     		INT
 );
 
 --Character overview table
@@ -351,7 +360,7 @@ CREATE TABLE Feats (
 	req_id			UUID,
 
 	short_description	TEXT,
-	long description	TEXT
+	long_description	TEXT
 );
 
 CREATE TABLE SkillReqUnits (
@@ -359,18 +368,18 @@ CREATE TABLE SkillReqUnits (
 	skill_unit_id		UUID
 );
 
-CREATE TABLE SkillUnits (
+CREATE TABLE SkillFeatUnits (
 	skill_unit_id		UUID,
 	req_skill		Skill,
 	ranks			INT
 );
 
-CREATE TABLE AttrReqUnits (
+CREATE TABLE AttributeReqUnits (
 	req_id			UUID,
 	attr_unit_id		UUID
 );
 
-CREATE TABLE AttrUnits (
+CREATE TABLE AttributeFeatUnits (
 	attr_unit_id		UUID,
 	req_attr		Attribute,
 	score			INT
@@ -457,7 +466,7 @@ CREATE TABLE Spells (
 	school			MagicSchool,
 
 	casting_time		INT,
-	range			Range,
+	range			SpellRange,
 	area			TEXT,
 	duration_per_level	INT,
 	saving_throw		SaveThrow,
@@ -528,14 +537,14 @@ CREATE TABLE DeityWeapons (
 );
 
 --Item tables
-CREATE TABLE Items (
+CREATE TABLE PathfinderItems (
 	item_id			UUID,
 	cost			INT,
 	description		TEXT,
 	name			TEXT,
 	weight			INT,
 	equip_slot		EquipmentSlot
-)
+);
 
 CREATE TABLE Weapons (
 	item_id			UUID,
