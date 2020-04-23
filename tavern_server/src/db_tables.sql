@@ -1,11 +1,11 @@
 --enum types
-CREATE TYPE Gender AS ENUM (
+CREATE TYPE IF NOT EXISTS Gender AS ENUM (
 	'Male', 
 	'Female', 
 	'Other'
 );
 
-CREATE TYPE Size AS ENUM (
+CREATE TYPE IF NOT EXISTS Size AS ENUM (
 	'Fine', 
 	'Diminutive', 
 	'Tiny', 
@@ -17,7 +17,7 @@ CREATE TYPE Size AS ENUM (
 	'Colossal'
 );
 
-CREATE TYPE Alignment AS ENUM (
+CREATE TYPE IF NOT EXISTS Alignment AS ENUM (
 	'Lawful Good', 
 	'Lawful Neutral', 
 	'Lawful Evil', 
@@ -29,7 +29,7 @@ CREATE TYPE Alignment AS ENUM (
 	'Chaotic Evil'
 );
 
-CREATE TYPE Attribute AS ENUM (
+CREATE TYPE IF NOT EXISTS Attribute AS ENUM (
 	'Strength', 
 	'Dexterity', 
 	'Constitution', 
@@ -38,7 +38,7 @@ CREATE TYPE Attribute AS ENUM (
 	'Charisma'
 );
 
-CREATE TYPE Skill AS ENUM (
+CREATE TYPE IF NOT EXISTS Skill AS ENUM (
 	'Acrobatics', 
 	'Appraise', 
 	'Bluff', 
@@ -75,13 +75,13 @@ CREATE TYPE Skill AS ENUM (
 	'Use Magic Device'
 );
 
-CREATE TYPE SaveThrow AS ENUM (
+CREATE TYPE IF NOT EXISTS SaveThrow AS ENUM (
 	'Fortitude', 
 	'Reflex',
 	'Will'
 );
 
-CREATE TYPE CharacterStat AS ENUM (
+CREATE TYPE IF NOT EXISTS CharacterStat AS ENUM (
 	'Name',
 	'Race',
 	'Size',
@@ -95,7 +95,7 @@ CREATE TYPE CharacterStat AS ENUM (
 	'Appearance'
 );
 
-CREATE TYPE CombatStat AS ENUM (
+CREATE TYPE IF NOT EXISTS CombatStat AS ENUM (
 	'Melee Attack Bonus',
 	'Ranged Attack Bonus',
 	'CMB',
@@ -112,7 +112,7 @@ CREATE TYPE CombatStat AS ENUM (
 	'Will Save'
 );
 
-CREATE TYPE RaceType AS ENUM (
+CREATE TYPE IF NOT EXISTS RaceType AS ENUM (
 	'Abberation', 
 	'Animal', 
 	'Construct', 
@@ -128,12 +128,12 @@ CREATE TYPE RaceType AS ENUM (
 	'Vermin'
 );
 
-CREATE TYPE CasterType AS ENUM (
+CREATE TYPE IF NOT EXISTS CasterType AS ENUM (
 	'Spontaneous', 
 	'Prepared'
 );
 
-CREATE TYPE MagicSchool AS ENUM (
+CREATE TYPE IF NOT EXISTS MagicSchool AS ENUM (
 	'Abjuration', 
 	'Conjuration', 
 	'Divination', 
@@ -144,7 +144,7 @@ CREATE TYPE MagicSchool AS ENUM (
 	'Transmutation'
 );
 
-CREATE TYPE SpellRange AS ENUM (
+CREATE TYPE IF NOT EXISTS SpellRange AS ENUM (
 	'Personal',
 	'Touch',
 	'Close',
@@ -153,7 +153,7 @@ CREATE TYPE SpellRange AS ENUM (
 	'Unlimited'
 );
 
-CREATE TYPE WeaponClass AS ENUM (
+CREATE TYPE IF NOT EXISTS WeaponClass AS ENUM (
 	'Axes', 
 	'Heavy Blades', 
 	'Light Blades', 
@@ -173,13 +173,13 @@ CREATE TYPE WeaponClass AS ENUM (
 	'Tribal'
 );
 
-CREATE TYPE ArmorClass AS ENUM (
+CREATE TYPE IF NOT EXISTS ArmorClass AS ENUM (
 	'Light', 
 	'Medium', 
 	'Heavy'
 );
 
-CREATE TYPE EquipmentSlot AS ENUM (
+CREATE TYPE IF NOT EXISTS EquipmentSlot AS ENUM (
 	'None',
 	'Armor', 
 	'Belts', 
@@ -198,7 +198,7 @@ CREATE TYPE EquipmentSlot AS ENUM (
 	'Wrist'
 );
 
-CREATE TYPE DamageType AS ENUM (
+CREATE TYPE IF NOT EXISTS DamageType AS ENUM (
 	'Bludgeoning', 
 	'Slashing', 
 	'Piercing', 
@@ -213,7 +213,7 @@ CREATE TYPE DamageType AS ENUM (
 	'Nonlethal'
 );
 
-CREATE TYPE Material AS ENUM (
+CREATE TYPE IF NOT EXISTS Material AS ENUM (
 	'Nonspecific', 
 	'Abysium', 
 	'Adamantine', 
@@ -267,7 +267,7 @@ CREATE TYPE Material AS ENUM (
 
 --table declarations
 --user creds table - also used for hashing info
-CREATE TABLE UserInfo (
+CREATE TABLE IF NOT EXISTS UserInfo (
 	user_id     		UUID,
 
         name        		TEXT,
@@ -282,7 +282,7 @@ CREATE TABLE UserInfo (
 );
 
 --Character overview table
-CREATE TABLE Character (
+CREATE TABLE IF NOT EXISTS Character (
         user_id         	UUID,
         char_id         	UUID,
         race_id         	UUID,
@@ -315,7 +315,7 @@ CREATE TABLE Character (
 );
 
 --Race tables
-CREATE TABLE Races (
+CREATE TABLE IF NOT EXISTS Races (
 	race_id 		UUID,
 
 	name			TEXT,
@@ -326,7 +326,7 @@ CREATE TABLE Races (
 );
 
 --Class tables
-CREATE TABLE Classes (
+CREATE TABLE IF NOT EXISTS Classes (
 	class_id		UUID,
 
 	name			TEXT,
@@ -337,7 +337,7 @@ CREATE TABLE Classes (
 	skills_attr		Attribute
 );
 
-CREATE TABLE Subclasses (
+CREATE TABLE IF NOT EXISTS Subclasses (
 	subclass_id		UUID,
 	class_id		UUID,
 
@@ -345,7 +345,7 @@ CREATE TABLE Subclasses (
 	casting_attr		Attribute
 );
 
-CREATE TABLE characterSubclasses (
+CREATE TABLE IF NOT EXISTS characterSubclasses (
 	char_id			UUID,
 	subclass_id		UUID,
 
@@ -355,7 +355,7 @@ CREATE TABLE characterSubclasses (
 );
 
 --Feats tables
-CREATE TABLE Feats (
+CREATE TABLE IF NOT EXISTS Feats (
 	feat_id			UUID,
 	req_id			UUID,
 
@@ -363,23 +363,23 @@ CREATE TABLE Feats (
 	long_description	TEXT
 );
 
-CREATE TABLE SkillReqUnits (
+CREATE TABLE IF NOT EXISTS SkillReqUnits (
 	req_id			UUID,
 	skill_unit_id		UUID
 );
 
-CREATE TABLE SkillFeatUnits (
+CREATE TABLE IF NOT EXISTS SkillFeatUnits (
 	skill_unit_id		UUID,
 	req_skill		Skill,
 	ranks			INT
 );
 
-CREATE TABLE AttributeReqUnits (
+CREATE TABLE IF NOT EXISTS AttributeReqUnits (
 	req_id			UUID,
 	attr_unit_id		UUID
 );
 
-CREATE TABLE AttributeFeatUnits (
+CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
 	attr_unit_id		UUID,
 	req_attr		Attribute,
 	score			INT
@@ -389,76 +389,76 @@ CREATE TABLE AttributeFeatUnits (
 --any given feat can require a number of other feats to be taken,
 --and a given feat can be required by any number of other feats.
 --this table accomplishes that.
-CREATE TABLE RequiredFeats (
+CREATE TABLE IF NOT EXISTS RequiredFeats (
 	req_id			UUID,
 	feat__id		UUID
 );
 
-CREATE TABLE CharacterFeats (
+CREATE TABLE IF NOT EXISTS CharacterFeats (
 	char_id			UUID,
 	feat_id			UUID
 );
 
-CREATE TABLE RacialFeats (
+CREATE TABLE IF NOT EXISTS RacialFeats (
 	race_id			UUID,
 	feat_id			UUID
 );
 
-CREATE TABLE ClassFeats (
+CREATE TABLE IF NOT EXISTS ClassFeats (
 	class_id		UUID,
 	feat_id			UUID
 );
 
 --Features tables
-CREATE TABLE Features (
+CREATE TABLE IF NOT EXISTS Features (
 	feature_id		UUID,
 	description		TEXT
 );
 
-CREATE TABLE ClassFeatures (
+CREATE TABLE IF NOT EXISTS ClassFeatures (
 	class_id		UUID,
 	feature_id		UUID,
 	is_default		BOOLEAN
 );
 
-CREATE TABLE CharacterFeatures (
+CREATE TABLE IF NOT EXISTS CharacterFeatures (
 	char_id			UUID,
 	feature_id		UUID
 );
 
-CREATE TABLE SubclassFeatures (
+CREATE TABLE IF NOT EXISTS SubclassFeatures (
 	subclass_id		UUID,
 	feature_id		UUID
 );
 
 --class proficiencies tables
-CREATE TABLE ClassProficientSingleWeapon (
+CREATE TABLE IF NOT EXISTS ClassProficientSingleWeapon (
 	class_id		UUID,
 	item_id			UUID
 );
 
-CREATE TABLE ClassProficientWeaponClass (
+CREATE TABLE IF NOT EXISTS ClassProficientWeaponClass (
 	class_id		UUID,
 	weapon_class		WeaponClass
 );
 
-CREATE TABLE ClassProficientWeaponAllBut (
+CREATE TABLE IF NOT EXISTS ClassProficientWeaponAllBut (
 	 class_id		UUID,
 	weapon_class		WeaponClass
 );
 
-CREATE TABLE ClassProficientArmorClass (
+CREATE TABLE IF NOT EXISTS ClassProficientArmorClass (
 	class_id		UUID,
 	armor_class		ArmorClass
 );
 
-CREATE TABLE ClassProficientArmorAllBut (
+CREATE TABLE IF NOT EXISTS ClassProficientArmorAllBut (
 	class_id		UUID,
 	armor_class		ArmorClass
 );
 
 --Spells tables
-CREATE TABLE Spells (
+CREATE TABLE IF NOT EXISTS Spells (
 	spell_id		UUID,
 
 	name			TEXT,
@@ -474,33 +474,33 @@ CREATE TABLE Spells (
 	description		TEXT
 );
 
-CREATE TABLE CharacterSpells (
+CREATE TABLE IF NOT EXISTS CharacterSpells (
 	char_id			UUID,
 	spell_id		UUID,
 	casts			INT
 );
 
-CREATE TABLE SubclassSpells (
+CREATE TABLE IF NOT EXISTS SubclassSpells (
 	class_id		UUID,
 	spell_id		UUID,
 	casts			INT,
 	req_level		INT
 );
 
-CREATE TABLE DomainSpells (
+CREATE TABLE IF NOT EXISTS DomainSpells (
 	domain_id		UUID,
 	spell_id		UUID,
 	casts			INT
 );
 
-CREATE TABLE SpellComponents (
+CREATE TABLE IF NOT EXISTS SpellComponents (
 	spell_id		UUID,
 	item_id			UUID,
 	amount			INT
 );
 
 --Domain tables
-CREATE TABLE Domains (
+CREATE TABLE IF NOT EXISTS Domains (
 	domain_id		UUID,
 	effect_id		UUID,
 
@@ -509,7 +509,7 @@ CREATE TABLE Domains (
 	power_description	TEXT
 );
 
-CREATE TABLE Subdomains (
+CREATE TABLE IF NOT EXISTS Subdomains (
 	domain_id		UUID,
 	effect_id		UUID,
 
@@ -518,7 +518,7 @@ CREATE TABLE Subdomains (
 );
 
 --Deity tables
-CREATE TABLE Deities (
+CREATE TABLE IF NOT EXISTS Deities (
 	deity_id		UUID,
 	
 	name			TEXT,
@@ -526,18 +526,18 @@ CREATE TABLE Deities (
 	favored_animals		TEXT
 );
 
-CREATE TABLE DeityDomains (
+CREATE TABLE IF NOT EXISTS DeityDomains (
 	deity_id		UUID,
 	domain_id		UUID
 );
 
-CREATE TABLE DeityWeapons (
+CREATE TABLE IF NOT EXISTS DeityWeapons (
 	deity_id		UUID,
 	item_id			UUID
 );
 
 --Item tables
-CREATE TABLE PathfinderItems (
+CREATE TABLE IF NOT EXISTS PathfinderItems (
 	item_id			UUID,
 	cost			INT,
 	description		TEXT,
@@ -546,7 +546,7 @@ CREATE TABLE PathfinderItems (
 	equip_slot		EquipmentSlot
 );
 
-CREATE TABLE Weapons (
+CREATE TABLE IF NOT EXISTS Weapons (
 	item_id			UUID,
 	weapon_range		INT4RANGE,
 	crit_range		INT4RANGE,
@@ -556,7 +556,7 @@ CREATE TABLE Weapons (
 	material		Material
 );
 
-CREATE TABLE Armor (
+CREATE TABLE IF NOT EXISTS Armor (
 	item_id			UUID,
 	max_dex_bonus		INT,
 	ac			INT,
@@ -566,111 +566,111 @@ CREATE TABLE Armor (
 	armor_type		ArmorClass
 );
 
-CREATE TABLE ItemsInBags (
+CREATE TABLE IF NOT EXISTS ItemsInBags (
 	item_id			UUID,
 	bag_id			UUID
 );
 
-CREATE TABLE CharacterBags (
+CREATE TABLE IF NOT EXISTS CharacterBags (
 	char_id			UUID,
 	bag_id			UUID,
 	item_id			UUID,
 	capacity		INT
 );
 
-CREATE TABLE CharacterEquipment (
+CREATE TABLE IF NOT EXISTS CharacterEquipment (
 	char_id			UUID,
 	item_id			UUID
 );
 
 --Effects tables
-CREATE TABLE Effects (
+CREATE TABLE IF NOT EXISTS Effects (
 	effect_id		UUID,
 	short_description	TEXT,
 	long_description	TEXT
 );
 
-CREATE TABLE RaceEffects (
+CREATE TABLE IF NOT EXISTS RaceEffects (
 	race_id			UUID,
 	effect_id		UUID
 );
 
-CREATE TABLE ClassEffects (
+CREATE TABLE IF NOT EXISTS ClassEffects (
 	class_id		UUID,
 	effect_id		UUID
 );
 
-CREATE TABLE ItemEffects (
+CREATE TABLE IF NOT EXISTS ItemEffects (
 	item_id			UUID,
 	effect_id		UUID,
 	is_permanent		BOOLEAN
 );
 
-CREATE TABLE SpellEffects (
+CREATE TABLE IF NOT EXISTS SpellEffects (
 	spell_id		UUID,
 	effect_id		UUID
 );
 
-CREATE TABLE FeatEffects (
+CREATE TABLE IF NOT EXISTS FeatEffects (
 	feat_id			UUID,
 	effect_id		UUID
 );
 
-CREATE TABLE FeatureEffects (
+CREATE TABLE IF NOT EXISTS FeatureEffects (
 	feature_id		UUID,
 	effect_id		UUID
 );
 
-CREATE TABLE AttributeEffectUnits (
+CREATE TABLE IF NOT EXISTS AttributeEffectUnits (
 	effect_id		UUID,
 	attr_unit_id		UUID
 );
 
-CREATE TABLE AttributeUnits (
+CREATE TABLE IF NOT EXISTS AttributeUnits (
 	attr_unit_id		UUID,
 	base_attr		Attribute,
 	modifier		INT
 );
 
-CREATE TABLE SkillEffectUnits (
+CREATE TABLE IF NOT EXISTS SkillEffectUnits (
 	effect_id		UUID,
 	skill_unit_id		UUID
 );
 
-CREATE TABLE SkillUnits (
+CREATE TABLE IF NOT EXISTS SkillUnits (
 	skill_unit_id		UUID,
 	skill			Skill,
 	modifier		INT
 );
 
-CREATE TABLE CharacterEffectUnits (
+CREATE TABLE IF NOT EXISTS CharacterEffectUnits (
 	effect_id		UUID,
 	char_unit_id		UUID
 );
 
-CREATE TABLE CharacterUnits (
+CREATE TABLE IF NOT EXISTS CharacterUnits (
 	char_unit_id		UUID,
 	character_stat		CharacterStat,
 	modifier		INT
 );
 
-CREATE TABLE CombatEffectUnits (
+CREATE TABLE IF NOT EXISTS CombatEffectUnits (
 	effect_id		UUID,
 	combat_unit_id		UUID
 );
 
-CREATE TABLE CombatUnits (
+CREATE TABLE IF NOT EXISTS CombatUnits (
 	combat_unit_id		UUID,
 	combat_stat		CombatStat,
 	modifier		INT
 );
 
-CREATE TABLE MiscEffectUnits (
+CREATE TABLE IF NOT EXISTS MiscEffectUnits (
 	effect_id		UUID,
 	misc_unit_id		UUID
 );
 
-CREATE TABLE MiscUnits (
+CREATE TABLE IF NOT EXISTS MiscUnits (
 	misc_unit_id		UUID,
 	description		TEXT
 );
