@@ -107,7 +107,7 @@ CREATE TYPE IF NOT EXISTS CombatStat AS ENUM (
 	'Damage Reduction',
 	'Spell Resistance',
 	'Speed',
-	'Fortititude Save',
+	'Fortitude Save',
 	'Reflex Save',
 	'Will Save'
 );
@@ -267,10 +267,11 @@ CREATE TYPE IF NOT EXISTS Material AS ENUM (
 
 --table declarations
 --user creds table - also used for hashing info
-CREATE TABLE IF NOT EXISTS UserInfo (
-	user_id     		UUID,
+CREATE TABLE IF NOT EXISTS Users (
+	id     			UUID PRIMARY KEY,
 
-        name        		TEXT,
+	email			TEXT,
+        username       		TEXT,
         is_admin    		BOOL,
 
         pass_hash   		BYTEA,
@@ -282,11 +283,12 @@ CREATE TABLE IF NOT EXISTS UserInfo (
 );
 
 --Character overview table
-CREATE TABLE IF NOT EXISTS Character (
-        user_id         	UUID,
-        char_id         	UUID,
-        race_id         	UUID,
-        deity_id        	UUID,
+CREATE TABLE IF NOT EXISTS Characters (
+        char_id         	UUID PRIMARY KEY,
+
+	id			UUID REFERENCES Users,
+        race_id         	UUID REFERENCES Races,
+        deity_id        	UUID REFERENCES Deities,
 
         name            	TEXT,
         age             	INT,
@@ -316,7 +318,7 @@ CREATE TABLE IF NOT EXISTS Character (
 
 --Race tables
 CREATE TABLE IF NOT EXISTS Races (
-	race_id 		UUID,
+	race_id 		UUID PRIMARY KEY,
 
 	name			TEXT,
 	move_speed		INT,
@@ -327,7 +329,7 @@ CREATE TABLE IF NOT EXISTS Races (
 
 --Class tables
 CREATE TABLE IF NOT EXISTS Classes (
-	class_id		UUID,
+	class_id		UUID PRIMARY KEY,
 
 	name			TEXT,
 	hit_die			TEXT,
@@ -338,16 +340,16 @@ CREATE TABLE IF NOT EXISTS Classes (
 );
 
 CREATE TABLE IF NOT EXISTS Subclasses (
-	subclass_id		UUID,
-	class_id		UUID,
+	subclass_id		UUID PRIMARY KEY,
+	class_id		UUID REFERENCES Classes,
 
 	caster_type		CasterType,
 	casting_attr		Attribute
 );
 
 CREATE TABLE IF NOT EXISTS characterSubclasses (
-	char_id			UUID,
-	subclass_id		UUID,
+	char_id			UUID REFERENCES Characters,
+	subclass_id		UUID REFERENCES Subclasses,
 
 	levels_taken		INT,
 	hp_taken		INT,
@@ -356,31 +358,30 @@ CREATE TABLE IF NOT EXISTS characterSubclasses (
 
 --Feats tables
 CREATE TABLE IF NOT EXISTS Feats (
-	feat_id			UUID,
-	req_id			UUID,
+	feat_id			UUID PRIMARY KEY,
 
 	short_description	TEXT,
 	long_description	TEXT
 );
 
 CREATE TABLE IF NOT EXISTS SkillReqUnits (
-	req_id			UUID,
-	skill_unit_id		UUID
+	feat_id			UUID REFERENCES Feats,
+	skill_unit_id		UUID REFERENCES SkillFeatUnits
 );
 
 CREATE TABLE IF NOT EXISTS SkillFeatUnits (
-	skill_unit_id		UUID,
+	skill_unit_id		UUID PRIMARY KEY,
 	req_skill		Skill,
 	ranks			INT
 );
 
 CREATE TABLE IF NOT EXISTS AttributeReqUnits (
-	req_id			UUID,
-	attr_unit_id		UUID
+	req_id			UUID REFERENCES Feats,
+	attr_unit_id		UUID REFERENCES AttributeFeatUnits
 );
 
 CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
-	attr_unit_id		UUID,
+	attr_unit_id		UUID PRIMARY KEY,
 	req_attr		Attribute,
 	score			INT
 );
@@ -390,8 +391,8 @@ CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
 --and a given feat can be required by any number of other feats.
 --this table accomplishes that.
 CREATE TABLE IF NOT EXISTS RequiredFeats (
-	req_id			UUID,
-	feat__id		UUID
+	feat_id			UUID REFERENCES Feats,
+	required_feat		UUID REFERENCES Feats
 );
 
 CREATE TABLE IF NOT EXISTS CharacterFeats (
