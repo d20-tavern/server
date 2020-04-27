@@ -224,51 +224,94 @@ CREATE TYPE IF NOT EXISTS DamageType AS ENUM (
 CREATE TABLE IF NOT EXISTS Users (
 	id     			UUID PRIMARY KEY,
 
-	email			TEXT,
-        username       		TEXT,
-	nickname		TEXT,
-        is_admin    		BOOL,
+	email			TEXT 
+		NOT NULL,
+        username       		TEXT 
+		NOT NULL,
+	nickname		TEXT 
+		NOT NULL,
+        is_admin    		BOOL 
+		NOT NULL,
 
-        pass_hash   		BYTEA,
-        salt        		BYTEA,
+        pass_hash   		BYTEA 
+		NOT NULL,
+        salt        		BYTEA 
+		NOT NULL,
 
-        time_cost   		INT,
-        memory      		INT,
-        threads     		INT
+        time_cost   		INT 
+		NOT NULL,
+        memory      		INT 
+		NOT NULL,
+        threads     		INT 
+		NOT NULL
 );
 
 --Character overview table
 CREATE TABLE IF NOT EXISTS Characters (
         char_id         	UUID PRIMARY KEY,
 
-	id			UUID REFERENCES Users,
-        race_id         	UUID REFERENCES Races,
-        deity_id        	UUID REFERENCES Deities,
+	id			UUID REFERENCES Users 
+		NOT NULL,
+        race_id         	UUID REFERENCES Races 
+		NOT NULL,
+        deity_id        	UUID REFERENCES Deities 
+		NOT NULL,
 
-        name            	TEXT,
-        age             	INT,
+        name            	TEXT 
+		NOT NULL,
+        age             	INT 
+		NOT NULL 
+		CHECK (age > 0),
         gender          	Gender,
-        alignment       	Alignment,
+        alignment       	Alignment 
+		NOT NULL,
         backstory       	TEXT,
         height          	INT,
         weight          	INT,
-        size            	Size,
+        size            	Size 
+		NOT NULL,
 
-        strength        	INT,
-        dexterity       	INT,
-        constitution    	INT,
-        intelligence    	INT,
-        wisdom          	INT,
-        charisma        	INT,
+        strength        	INT 
+		NOT NULL 
+		CHECK (strength >= 0 AND strength <= 20),
+        dexterity       	INT 
+		NOT NULL 
+		CHECK (dexterity >= 0 AND dexterity <= 20),
+        constitution    	INT 
+		NOT NULL
+		CHECK (constitution >= 0 AND constitution <= 20),
+        intelligence    	INT 
+		NOT NULL
+		CHECK (intelligence >= 0 AND intelligence <= 20),
+        wisdom          	INT
+		NOT NULL
+		CHECK (wisdom >= 0 AND wisdom <= 20),
+        charisma        	INT
+		NOT NULL
+		CHECK (charisma >= 0 AND charisma <= 20),
 
-        max_hp          	INT,
-        damage          	INT,
-        nonlethal       	INT,
+        max_hp          	INT
+		NOT NULL
+		CHECK (max_hp >= 0),
+        damage          	INT
+		NOT NULL
+		CHECK (damage >= 0),
+        nonlethal       	INT
+		NOT NULL
+		CHECK (nonlethal >= 0),
 
-        copper          	INT,
-        silver          	INT,
-        gold            	INT,
+        copper          	INT
+		NOT NULL
+		CHECK (copper >= 0),
+        silver          	INT
+		NOT NULL
+		CHECK (silver >= 0),
+        gold            	INT
+		NOT NULL
+		CHECK (gold >= 0),
         platinum        	INT
+		NOT NULL
+		CHECK (platinum >= 0)
 );
 
 --Race tables
