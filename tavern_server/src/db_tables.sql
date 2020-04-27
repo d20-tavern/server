@@ -128,6 +128,10 @@ CREATE TYPE IF NOT EXISTS RaceType AS ENUM (
 	'Vermin'
 );
 
+CREATE TYPE IF NOT EXISTS RaceSubtyep AS ENUM (
+
+);
+
 CREATE TYPE IF NOT EXISTS CasterType AS ENUM (
 	'Spontaneous', 
 	'Prepared'
@@ -317,41 +321,79 @@ CREATE TABLE IF NOT EXISTS Characters (
 --Race tables
 CREATE TABLE IF NOT EXISTS Races (
 	race_id 		UUID PRIMARY KEY,
+	type_id			UUID REFERENCES RaceTypes
+		NOT NULL,
+	subtype_id		UUID REFERENCES RaceSubtypes,
 
-	name			TEXT,
-	move_speed		INT,
-	size			Size,
-	languages		TEXT,
-	race_type		RaceType
+	name			TEXT
+		NOT NULL,
+	move_speed		INT
+		NOT NULL,
+	size			Size
+		NOT NULL,
+	languages		TEXT
 );
 
+CREATE TABLE IF NOT EXISTS RaceTypes (
+	type_id			UUID PRIMARY KEY,
+
+	name			TEXT
+		NOT NULL,
+	hit_die			TEXT
+		NOT NULL,
+	bab_per_hit_die		REAL
+		NOT NULL
+);
+
+CREATE TABLE IF NOT EXiSTS RaceSubtypes (
+	subtype_id		UUID PRIMARY KEY,
+
+	name			TEXT
+		NOT NULL
+);
+	
 --Class tables
 CREATE TABLE IF NOT EXISTS Classes (
 	class_id		UUID PRIMARY KEY,
 
-	name			TEXT,
-	hit_die			TEXT,
-	starting_wealth		TEXT,
-	bab_per_level		REAL,
-	skills_per_level	INT,
+	name			TEXT
+		NOT NULL,
+	hit_die			TEXT
+		NOT NULL,
+	starting_wealth		TEXT
+		NOT NULL,
+	bab_per_level		REAL
+		NOT NULL,
+	skills_per_level	INT
+		NOT NULL,
 	skills_attr		Attribute
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Subclasses (
 	subclass_id		UUID PRIMARY KEY,
-	class_id		UUID REFERENCES Classes,
+	class_id		UUID REFERENCES Classes
+		NOT NULL,
 
 	caster_type		CasterType,
 	casting_attr		Attribute
 );
 
 CREATE TABLE IF NOT EXISTS characterSubclasses (
-	char_id			UUID REFERENCES Characters,
-	subclass_id		UUID REFERENCES Subclasses,
+	char_id			UUID REFERENCES Characters
+		NOT NULL,
+	subclass_id		UUID REFERENCES Subclasses
+		NOT NULL,
 
-	levels_taken		INT,
-	hp_taken		INT,
+	levels_taken		INT
+		NOT NULL
+		CHECK (levels_taken > 0),
+	hp_taken		INT
+		NOT NULL
+		CHECK (hp_taken >= 0),
 	skills_taken		INT
+		NOT NULL
+		CHECK (skills_taken >= 0)
 );
 
 --Feats tables
@@ -360,11 +402,12 @@ CREATE TABLE IF NOT EXISTS Feats (
 
 	short_description	TEXT,
 	long_description	TEXT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS SkillReqUnits (
 	feat_id			UUID REFERENCES Feats,
-	skill_unit_id		UUID[] REFERENCES SkillFeatUnits
+	skill_unit_id		UUID REFERENCES SkillFeatUnits
 );
 
 CREATE TABLE IF NOT EXISTS SkillFeatUnits (
@@ -375,7 +418,7 @@ CREATE TABLE IF NOT EXISTS SkillFeatUnits (
 
 CREATE TABLE IF NOT EXISTS AttributeReqUnits (
 	feat_id			UUID REFERENCES Feats,
-	attr_unit_id		UUID[] REFERENCES AttributeFeatUnits
+	attr_unit_id		UUID REFERENCES AttributeFeatUnits
 );
 
 CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
@@ -390,22 +433,22 @@ CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
 --this table accomplishes that.
 CREATE TABLE IF NOT EXISTS FeatRequirements (
 	feat_id			UUID REFERENCES Feats,
-	required_feat		UUID[] REFERENCES Feats
+	required_feat		UUID REFERENCES Feats
 );
 
 CREATE TABLE IF NOT EXISTS CharacterFeats (
 	char_id			UUID REFERENCES Characters,
-	feat_id			UUID[] REFERENCES Feats
+	feat_id			UUID REFERENCES Feats
 );
 
 CREATE TABLE IF NOT EXISTS RacialFeats (
 	race_id			UUID REFERENCES Races,
-	feat_id			UUID[] REFERENCES Feats
+	feat_id			UUID REFERENCES Feats
 );
 
 CREATE TABLE IF NOT EXISTS ClassFeats (
 	class_id		UUID REFERENCES Classes,
-	feat_id			UUID[] REFERENCES Feats
+	feat_id			UUID REFERENCES Feats
 );
 
 --Features tables
@@ -591,6 +634,17 @@ CREATE TABLE IF NOT EXISTS Effects (
 
 CREATE TABLE IF NOT EXISTS RaceEffects (
 	race_id			UUID REFERENCES Races,
+	effect_id		UUID REFERENCES Effects
+);
+
+CREATE TABLE IF NOT EXISTS RaceTypeEffects (
+	type_id			UUID REFERENCES RaceTypes,
+	effect_id		UUID REFERENCES Effects
+	
+);
+
+CREATE TABLE IF NOT EXISTS RaceSubtypeEffects (
+	subtype_id		UUID REFERENCES RaceSubtypes,
 	effect_id		UUID REFERENCES Effects
 );
 
