@@ -406,25 +406,33 @@ CREATE TABLE IF NOT EXISTS Feats (
 );
 
 CREATE TABLE IF NOT EXISTS SkillReqUnits (
-	feat_id			UUID REFERENCES Feats,
+	feat_id			UUID REFERENCES Feats
+		NOT NULL,
 	skill_unit_id		UUID REFERENCES SkillFeatUnits
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS SkillFeatUnits (
 	skill_unit_id		UUID PRIMARY KEY,
-	req_skill		Skill,
+	req_skill		Skill
+		NOT NULL,
 	ranks			INT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS AttributeReqUnits (
-	feat_id			UUID REFERENCES Feats,
+	feat_id			UUID REFERENCES Feats
+		NOT NULL,
 	attr_unit_id		UUID REFERENCES AttributeFeatUnits
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
 	attr_unit_id		UUID PRIMARY KEY,
-	req_attr		Attribute,
+	req_attr		Attribute
+		NOT NULL,
 	score			INT
+		NOT NULL
 );
 
 --this table creates a many to many realationship internally between feats.
@@ -432,55 +440,73 @@ CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
 --and a given feat can be required by any number of other feats.
 --this table accomplishes that.
 CREATE TABLE IF NOT EXISTS FeatRequirements (
-	feat_id			UUID REFERENCES Feats,
+	feat_id			UUID REFERENCES Feats
+		NOT NULL,
 	required_feat		UUID REFERENCES Feats
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CharacterFeats (
-	char_id			UUID REFERENCES Characters,
+	char_id			UUID REFERENCES Characters
+		NOT NULL,
 	feat_id			UUID REFERENCES Feats
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS RacialFeats (
-	race_id			UUID REFERENCES Races,
+	race_id			UUID REFERENCES Races
+		NOT NULL,
 	feat_id			UUID REFERENCES Feats
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ClassFeats (
 	class_id		UUID REFERENCES Classes,
+		NOT NULL
 	feat_id			UUID REFERENCES Feats
+		NOT NULL
 );
 
 --Features tables
 CREATE TABLE IF NOT EXISTS Features (
 	feature_id		UUID PRIMARY KEY,
 	description		TEXT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ClassFeatures (
-	class_id		UUID REFERENCES Feats,
-	feature_id		UUID REFERENCES Features,
+	class_id		UUID REFERENCES Feats
+		NOT NULL,
+	feature_id		UUID REFERENCES Features
+		NOT NULL,
 	is_default		BOOLEAN
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CharacterFeatures (
-	char_id			UUID REFERENCES Characters,
+	char_id			UUID REFERENCES Characters
+		NOT NULL,
 	feature_id		UUID REFERENCES Features
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS SubclassFeatures (
-	subclass_id		UUID REFERENCES Subclasses,
+	subclass_id		UUID REFERENCES Subclasses
+		NOT NULL,
 	feature_id		UUID REFERENCES Features
+		NOT NULL
 );
 
 --class proficiencies tables
 CREATE TABLE IF NOT EXISTS ClassWeaponsNotProficient (
-	class_id		UUID REFERENCES Classes,
+	class_id		UUID REFERENCES Classes
+		NOT NULL,
 	weapon_classes		WeaponClass[]
 );
 
 CREATE TABLE IF NOT EXISTS ClassArmorsNotProficient (
-	class_id		UUID REFERENCES Classes,
+	class_id		UUID REFERENCES Classes
+		NOT NULL,
 	armor_classes		ArmorClass[]
 );
 
@@ -488,23 +514,39 @@ CREATE TABLE IF NOT EXISTS ClassArmorsNotProficient (
 CREATE TABLE IF NOT EXISTS Spells (
 	spell_id		UUID PRIMARY KEY,
 
-	name			TEXT,
-	level			INT,
-	school			MagicSchool,
+	name			TEXT
+		NOT NULL,
+	level			INT
+		NOT NULL
+		CHECK (level >= 0),
+	school			MagicSchool
+		NOT NULL,
 
-	casting_time		INT,
-	range			SpellRange,
-	area			TEXT,
-	duration_per_level	INT,
+	casting_time		INT
+		NOT NULL
+		CHECK (casting_time >= 0),
+	range			SpellRange
+		NOT NULL,
+	area			TEXT
+		NOT NULL,
+	duration_per_level	INT
+		NOT NULL
+		CHECK (duration_per_level > 0),
 	saving_throw		SaveThrow,
-	spell_resistance	BOOLEAN,
+	spell_resistance	BOOLEAN
+		NOT NULL,
 	description		TEXT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CharacterSpells (
-	char_id			UUID REFERENCES Characters,
-	spell_id		UUID REFERENCES Spells,
+	char_id			UUID REFERENCES Characters
+		NOT NULL,
+	spell_id		UUID REFERENCES Spells
+		NOT NULL,
 	casts			INT
+		NOT NULL
+		CHECK (casts >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS SubclassSpells (
@@ -521,45 +563,58 @@ CREATE TABLE IF NOT EXISTS DomainSpells (
 );
 
 CREATE TABLE IF NOT EXISTS SpellComponents (
-	spell_id		UUID REFERENCES Spells,
+	spell_id		UUID REFERENCES Spells
+		NOT NULL,
 	item_id			UUID REFERENCES Items,
 
-	amount			INT
+	amount			INT,
 	component_type		ComponentType
+		NOT NULL
 );
 
 --Domain tables
 CREATE TABLE IF NOT EXISTS Domains (
 	domain_id		UUID PRIMARY KEY,
 
-	name			TEXT,
-	description		TEXT,
+	name			TEXT
+		NOT NULL,
+	description		TEXT
+		NOT NULL,
 	power_description	TEXT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Subdomains (
-	domain_id		UUID REFERENCES Domains,
+	domain_id		UUID REFERENCES Domains
+		NOT NULL,
 
-	name			TEXT,
+	name			TEXT
+		NOT NULL,
 	description		TEXT
+		NOT NULL
 );
 
 --Deity tables
 CREATE TABLE IF NOT EXISTS Deities (
 	deity_id		UUID PRIMARY KEY,
 	
-	name			TEXT,
-	description		TEXT,
+	name			TEXT
+		NOT NULL,
+	description		TEXT
+		NOT NULL,
 	favored_animals		TEXT
 );
 
 CREATE TABLE IF NOT EXISTS DeityDomains (
-	deity_id		UUID REFERENCES Deities,
+	deity_id		UUID REFERENCES Deities
+		NOT NULL,
 	domain_id		UUID REFERENCES Domains
+		NOT NULL 	--no deities without domains
 );
 
 CREATE TABLE IF NOT EXISTS DeityWeapons (
-	deity_id		UUID REFERENCES Deities,
+	deity_id		UUID REFERENCES Deities
+		NOT NULL,
 	item_id			UUID REFERENCES Items
 );
 
@@ -567,51 +622,74 @@ CREATE TABLE IF NOT EXISTS DeityWeapons (
 CREATE TABLE IF NOT EXISTS PathfinderItems (
 	item_id			UUID PRIMARY KEY,
 
-	cost			INT,
+	name			TEXT
+		NOT NULL,
 	description		TEXT,
-	name			TEXT,
-	weight			INT,
+	cost			INT	--prices are in copper
+		NOT NULL
+		CHECK (cost >= 0),
+	weight			INT
+		NOT NULL,
 	equip_slot		EquipmentSlot
 );
 
 CREATE TABLE IF NOT EXISTS Weapons (
-	item_id			UUID REFERENCES Items,
+	item_id			UUID REFERENCES Items
+		NOT NULL,
 	material_id		UUID REFERENCES Materials,
 
-	weapon_range		INT4RANGE,
-	crit_range		INT4RANGE,
-	damage			TEXT[],
-	damage_type		DamageType[],
-	weapon_type		WeaponClass,
+	weapon_range		INT4RANGE
+		NOT NULL,
+	crit_range		INT4RANGE
+		NOT NULL,
+	damage			TEXT[]
+		NOT NULL,
+	damage_type		DamageType[]
+		NOT NULL,
+	weapon_type		WeaponClass
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Armor (
-	item_id			UUID REFERENCES Items,
+	item_id			UUID REFERENCES Items
+		NOT NULL,
 	material_id		UUID REFERENCES Materials,
 	
-	max_dex_bonus		INT,
-	ac			INT,
+	max_dex_bonus		INT
+		NOT NULL
+		CHECK (max_dex_bonus >= 0),
+	ac			INT
+		NOT NuLL,
 	spell_failure		INT,
 	check_penalty		INT,
 	armor_type		ArmorClass
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ItemsInBags (
-	item_id			UUID REFERENCES Items,
+	item_id			UUID REFERENCES Items
+		NOT NULL,
 	bag_id			UUID REFERENCES Bags
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Bags (
 	bag_id			UUID PRIMARY KEY,
-	char_id			UUID REFERENCES Characters,
-	item_id			UUID REFERENCES Items,
+	char_id			UUID REFERENCES Characters
+		NOT NULL,
+	item_id			UUID REFERENCES Items
+		NOT NULL,
 
 	capacity		INT
+		NOT NULL
+		CHECK (capacity > 0)
 );
 
 CREATE TABLE IF NOT EXISTS CharacterEquipment (
-	char_id			UUID REFERENCES Characters,
+	char_id			UUID REFERENCES Characters
+		NOT NULL,
 	item_id			UUID REFERENCES Items
+		NOT NULL
 );
 
 --Materials Tables
