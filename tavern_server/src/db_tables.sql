@@ -696,8 +696,10 @@ CREATE TABLE IF NOT EXISTS CharacterEquipment (
 CREATE TABLE IF NOT EXISTS Materials (
 	material_id		UUID PRIMARY KEY,
 
-	name			TEXT,
-	description		TEXT,
+	name			TEXT
+		NOT NULL,
+	description		TEXT
+		NOT NULL,
 
 	hp_per_inch		INT,
 	hardness		INT
@@ -708,110 +710,152 @@ CREATE TABLE IF NOT EXISTS Effects (
 	effect_id		UUID PRIMARY KEY,
 	short_description	TEXT,
 	long_description	TEXT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS RaceEffects (
-	race_id			UUID REFERENCES Races,
+	race_id			UUID REFERENCES Races
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS RaceTypeEffects (
-	type_id			UUID REFERENCES RaceTypes,
+	type_id			UUID REFERENCES RaceTypes
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 	
 );
 
 CREATE TABLE IF NOT EXISTS RaceSubtypeEffects (
-	subtype_id		UUID REFERENCES RaceSubtypes,
+	subtype_id		UUID REFERENCES RaceSubtypes
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ClassEffects (
-	class_id		UUID REFERENCES Classes,
+	class_id		UUID REFERENCES Classes
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ItemEffects (
-	item_id			UUID REFERENCES Items,
-	effect_id		UUID REFERENCES Effects,
+	item_id			UUID REFERENCES Items
+		NOT NULL,
+	effect_id		UUID REFERENCES Effects
+		NOT NULL,
 	is_permanent		BOOLEAN
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS SpellEffects (
-	spell_id		UUID REFERENCES Spells,
+	spell_id		UUID REFERENCES Spells
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS FeatEffects (
-	feat_id			UUID REFERENCES Feats,
+	feat_id			UUID REFERENCES Feats
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS FeatureEffects (
-	feature_id		UUID REFERENCES Features,
+	feature_id		UUID REFERENCES Features
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS DomainEffects (
-	domain_id		UUID REFERENCES Domains,
+	domain_id		UUID REFERENCES Domains
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS MaterialEffects (
 	material_id		UUID REFERENCES Materials
+		NOT NULL,
 	effect_id		UUID REFERENCES Effects
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS AttributeEffectUnits (
-	effect_id		UUID REFERENCES Effects,
+	effect_id		UUID REFERENCES Effects
+		NOT NULL,
 	attr_unit_id		UUID REFERENCES AttributeUnits
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS AttributeUnits (
 	attr_unit_id		UUID PRIMARY KEY,
-	base_attr		Attribute,
+	base_attr		Attribute
+		NOT NULL,
 	modifier		INT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS SkillEffectUnits (
-	effect_id		UUID REFERENCES Effects,
+	effect_id		UUID REFERENCES Effects
+		NOT NULL,
 	skill_unit_id		UUID REFERENCES SkillUnits
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS SkillUnits (
 	skill_unit_id		UUID PRIMARY KEY,
-	skill			Skill,
+	skill			Skill
+		NOT NULL,
 	modifier		INT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CharacterEffectUnits (
-	effect_id		UUID REFERENCES Effects,
+	effect_id		UUID REFERENCES Effects
+		NOT NULL,
 	char_unit_id		UUID REFERENCES CharacterUnits
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CharacterUnits (
 	char_unit_id		UUID PRIMARY KEY,
-	character_stat		CharacterStat,
+	character_stat		CharacterStat
+		NOT NULL,
 	modifier		INT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CombatEffectUnits (
-	effect_id		UUID REFERENCES Effects,
+	effect_id		UUID REFERENCES Effects
+		NOT NULL,
 	combat_unit_id		UUID REFERENCES CombatUnits
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CombatUnits (
 	combat_unit_id		UUID PRIMARY KEY,
-	combat_stat		CombatStat,
+	combat_stat		CombatStat
+		NOT NULL,
 	modifier		INT
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS MiscEffectUnits (
-	effect_id		UUID REFERENCES Effects,
+	effect_id		UUID REFERENCES Effects
+		NOT NULL,
 	misc_unit_id		UUID REFERENCES MiscUnits
+		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS MiscUnits (
-	misc_unit_id		UUID PRIMARY KEY,
+	misc_unit_id		UUID PRIMARY KEY
+		NOT NULL,
 	description		TEXT
+		NOT NULL
 );
