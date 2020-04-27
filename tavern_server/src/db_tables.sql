@@ -278,6 +278,7 @@ CREATE TABLE IF NOT EXISTS Users (
 
 	email			TEXT,
         username       		TEXT,
+	nickname		TEXT,
         is_admin    		BOOL,
 
         pass_hash   		BYTEA,
@@ -396,7 +397,7 @@ CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
 --any given feat can require a number of other feats to be taken,
 --and a given feat can be required by any number of other feats.
 --this table accomplishes that.
-CREATE TABLE IF NOT EXISTS RequiredFeats (
+CREATE TABLE IF NOT EXISTS FeatRequirements (
 	feat_id			UUID REFERENCES Feats,
 	required_feat		UUID[] REFERENCES Feats
 );
@@ -544,7 +545,7 @@ CREATE TABLE IF NOT EXISTS Weapons (
 
 	weapon_range		INT4RANGE,
 	crit_range		INT4RANGE,
-	damage			TEXT,
+	damage			TEXT[],
 	damage_type		DamageType[],
 	weapon_type		WeaponClass,
 	material		Material
