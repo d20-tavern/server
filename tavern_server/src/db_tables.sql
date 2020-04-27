@@ -219,58 +219,6 @@ CREATE TYPE IF NOT EXISTS DamageType AS ENUM (
 	'Nonlethal'
 );
 
-CREATE TYPE IF NOT EXISTS Material AS ENUM (
-	'Nonspecific', 
-	'Abysium', 
-	'Adamantine', 
-	'Angelskin', 
-	'Aszite', 
-	'Magic Bridge Basalt', 
-	'Blight Quartz', 
-	'Bone', 
-	'Bronze', 
-	'Bulette', 
-	'Coral', 
-	'Clamshell', 
-	'Chitin', 
-	'Crypstone', 
-	'Blood Crystal',
-	'Darkleaf Cloth',
-	'Darkwood',
-	'Djezet',
-	'Dragonhide',
-	'Dragonskin',
-	'Druchite',
-	'Eel Hide',
-	'Elysian Bronze',
-	'Gold',
-	'Greenwood',
-	'Griffon Mane',
-	'Horacalcum',
-	'Inubrix',
-	'Cold Iron',
-	'Mindglass',
-	'Mithral',
-	'Noqual',
-	'Obsidian',
-	'Serpentstone',
-	'Siccatite',
-	'Alchemical Silver',
-	'Silversheen',
-	'Skymetal Alloy',
-	'Spiresteel',
-	'Fire-forged Steel',
-	'Frost-Forged Steel',
-	'Living Steel',
-	'Singing Steel',
-	'Stone',
-	'Sunsilver',
-	'Viridium',
-	'Voidglass',
-	'Whipwood',
-	'Wyroot'
-);
-
 --table declarations
 --user creds table - also used for hashing info
 CREATE TABLE IF NOT EXISTS Users (
@@ -542,23 +490,23 @@ CREATE TABLE IF NOT EXISTS PathfinderItems (
 
 CREATE TABLE IF NOT EXISTS Weapons (
 	item_id			UUID REFERENCES Items,
+	material_id		UUID REFERENCES Materials,
 
 	weapon_range		INT4RANGE,
 	crit_range		INT4RANGE,
 	damage			TEXT[],
 	damage_type		DamageType[],
 	weapon_type		WeaponClass,
-	material		Material
 );
 
 CREATE TABLE IF NOT EXISTS Armor (
 	item_id			UUID REFERENCES Items,
+	material_id		UUID REFERENCES Materials,
 	
 	max_dex_bonus		INT,
 	ac			INT,
 	spell_failure		INT,
 	check_penalty		INT,
-	material		Material,
 	armor_type		ArmorClass
 );
 
@@ -578,6 +526,17 @@ CREATE TABLE IF NOT EXISTS Bags (
 CREATE TABLE IF NOT EXISTS CharacterEquipment (
 	char_id			UUID REFERENCES Characters,
 	item_id			UUID REFERENCES Items
+);
+
+--Materials Tables
+CREATE TABLE IF NOT EXISTS Materials (
+	material_id		UUID PRIMARY KEY,
+
+	name			TEXT,
+	description		TEXT,
+
+	hp_per_inch		INT,
+	hardness		INT
 );
 
 --Effects tables
@@ -620,6 +579,11 @@ CREATE TABLE IF NOT EXISTS FeatureEffects (
 
 CREATE TABLE IF NOT EXISTS DomainEffects (
 	domain_id		UUID REFERENCES Domains,
+	effect_id		UUID REFERENCES Effects
+);
+
+CREATE TABLE IF NOT EXISTS MaterialEffects (
+	material_id		UUID REFERENCES Materials
 	effect_id		UUID REFERENCES Effects
 );
 
