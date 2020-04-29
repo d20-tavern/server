@@ -221,11 +221,14 @@ CREATE TABLE IF NOT EXISTS Users (
 		NOT NULL,
 
         time_cost   		INT 
-		NOT NULL,
+		NOT NULL
+		CHECK (time_cost > 0),
         memory      		INT 
-		NOT NULL,
+		NOT NULL
+		CHECK (memory > 0),
         threads     		INT 
 		NOT NULL
+		CHECK (threads > 0)
 );
 
 --Character overview table
