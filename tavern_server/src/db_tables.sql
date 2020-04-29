@@ -212,8 +212,8 @@ CREATE TABLE IF NOT EXISTS Users (
 		NOT NULL,
         username       		TEXT 
 		NOT NULL,
-        is_admin    		BOOL 
-		NOT NULL,
+        is_admin    		BOOLEAN
+		DEFAULT false,
 
         pass_hash   		BYTEA 
 		NOT NULL,
@@ -251,8 +251,10 @@ CREATE TABLE IF NOT EXISTS Characters (
         alignment       	Alignment 
 		NOT NULL,
         backstory       	TEXT,
-        height          	INT,
-        weight          	INT,
+        height          	INT
+		CHECK (height > 0),
+        weight          	INT
+		CHECK (weight > 0),
         size            	Size 
 		NOT NULL,
 
@@ -309,10 +311,11 @@ CREATE TABLE IF NOT EXISTS Races (
 	name			TEXT
 		NOT NULL,
 	move_speed		INT
-		NOT NULL,
+		NOT NULL
+		CHECK (move_speed > 0),
 	size			Size
 		NOT NULL,
-	languages		TEXT
+	languages		TEXT[]
 );
 
 CREATE TABLE IF NOT EXISTS RaceTypes (
@@ -461,7 +464,7 @@ CREATE TABLE IF NOT EXISTS ClassFeatures (
 	feature_id		UUID REFERENCES Features
 		NOT NULL,
 	is_default		BOOLEAN
-		NOT NULL
+		DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS CharacterFeatures (
@@ -515,7 +518,7 @@ CREATE TABLE IF NOT EXISTS Spells (
 		CHECK (duration_per_level > 0),
 	saving_throw		SaveThrow,
 	spell_resistance	BOOLEAN
-		NOT NULL,
+		DEFAULT false,
 	description		TEXT
 		NOT NULL
 );
@@ -533,14 +536,21 @@ CREATE TABLE IF NOT EXISTS CharacterSpells (
 CREATE TABLE IF NOT EXISTS SubclassSpells (
 	subclass_id		UUID REFERENCES Subclasses,
 	spell_id		UUID REFERENCES Spells,
-	casts			INT,
+
+	casts			INT
+		NOT NULL
+		CHECK (casts >= 0),
 	req_level		INT
+		NOT NULL
+		CHECK (casts >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS DomainSpells (
 	domain_id		UUID REFERENCES Domains,
 	spell_id		UUID REFERENCES Spells,
 	casts			INT
+		NOT NULL
+		CHECK (casts >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS SpellComponents (
@@ -548,7 +558,8 @@ CREATE TABLE IF NOT EXISTS SpellComponents (
 		NOT NULL,
 	item_id			UUID REFERENCES Items,
 
-	amount			INT,
+	item_amount			INT
+		CHECK (item_amount >= 0)
 	component_type		ComponentType
 		NOT NULL
 );
@@ -610,7 +621,8 @@ CREATE TABLE IF NOT EXISTS PathfinderItems (
 		NOT NULL
 		CHECK (cost >= 0),
 	weight			INT
-		NOT NULL,
+		NOT NULL
+		CHECK (weight >=0),
 	equip_slot		EquipmentSlot
 );
 
@@ -640,9 +652,14 @@ CREATE TABLE IF NOT EXISTS Armor (
 		NOT NULL
 		CHECK (max_dex_bonus >= 0),
 	ac			INT
-		NOT NuLL,
-	spell_failure		INT,
-	check_penalty		INT,
+		NOT NULL
+		CHECK (ac >= 0),
+	spell_failure		INT
+		NOT NULL
+		CHECK (spell_failure >= 0),
+	check_penalty		INT
+		NOT NULL
+		CHECK (check_penalty >= 0),
 	armor_type		ArmorClass
 		NOT NULL
 );
@@ -682,6 +699,7 @@ CREATE TABLE IF NOT EXISTS Materials (
 	description		TEXT
 		NOT NULL,
 
+	--both of these are not universal for materials, as far as I can tell.
 	hp_per_inch		INT,
 	hardness		INT
 );
@@ -729,7 +747,7 @@ CREATE TABLE IF NOT EXISTS ItemEffects (
 	effect_id		UUID REFERENCES Effects
 		NOT NULL,
 	is_permanent		BOOLEAN
-		NOT NULL
+		DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS SpellEffects (
