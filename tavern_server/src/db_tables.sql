@@ -212,8 +212,6 @@ CREATE TABLE IF NOT EXISTS Users (
 		NOT NULL,
         username       		TEXT 
 		NOT NULL,
-	nickname		TEXT 
-		NOT NULL,
         is_admin    		BOOL 
 		NOT NULL,
 
