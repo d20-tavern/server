@@ -112,26 +112,6 @@ CREATE TYPE IF NOT EXISTS CombatStat AS ENUM (
 	'Will Save'
 );
 
-CREATE TYPE IF NOT EXISTS RaceType AS ENUM (
-	'Abberation', 
-	'Animal', 
-	'Construct', 
-	'Dragon', 
-	'Fey', 
-	'Humanoid', 
-	'Magical Beast', 
-	'Monstrous Humanoid', 
-	'Ooze', 
-	'Outsider', 
-	'Plant', 
-	'Undead', 
-	'Vermin'
-);
-
-CREATE TYPE IF NOT EXISTS RaceSubtyep AS ENUM (
-
-);
-
 CREATE TYPE IF NOT EXISTS CasterType AS ENUM (
 	'Spontaneous', 
 	'Prepared'
