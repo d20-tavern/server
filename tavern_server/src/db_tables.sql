@@ -329,7 +329,7 @@ CREATE TABLE IF NOT EXISTS RaceTypes (
 		NOT NULL
 );
 
-CREATE TABLE IF NOT EXiSTS RaceSubtypes (
+CREATE TABLE IF NOT EXISTS RaceSubtypes (
 	subtype_id		UUID PRIMARY KEY,
 
 	name			TEXT
