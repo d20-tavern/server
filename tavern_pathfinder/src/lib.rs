@@ -1,6 +1,6 @@
+extern crate serde;
+
 use serde::{Serialize, Deserialize};
-use uuid::Uuid;
-use byte;
 
 #[cfg(test)]
 mod tests {
@@ -9,14 +9,14 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 }
-mod types {
-    enum Gender {
+pub mod types {
+    pub enum Gender {
         Male,
         Female,
         Other,
     }
 
-    enum Size {
+    pub enum Size {
         Fine,
         Diminutive,
         Tiny,
@@ -28,7 +28,7 @@ mod types {
         Colossal,
     }
 
-    enum Alignment {
+    pub enum Alignment {
         LawfulGood,
         LawfulNeutral,
         LawfulEvil,
@@ -39,7 +39,7 @@ mod types {
         ChaoticEvil,
     }
 
-    enum Attribute {
+    pub enum Attribute {
         Strength,
         Dexterity,
         Constitution,
@@ -48,7 +48,7 @@ mod types {
         Charisma,
     }
 
-    enum Skill {
+    pub enum Skill {
        	Acrobatics, 
     	Appraise, 
     	Bluff, 
@@ -85,13 +85,13 @@ mod types {
         UseMagicDevice,
     }
 
-    enum SaveThrow {
+    pub enum SaveThrow {
         Fortitude,
         Reflex,
         Will,
     }
 
-    enum CharacterStat {
+    pub enum CharacterStat {
     	Name,
     	Race,
     	Size,
@@ -105,7 +105,7 @@ mod types {
         Appearance,
     }
 
-    enum CombatStat {
+    pub enum CombatStat {
     	MeleeAttackBonus,
     	RangedAttackBonus,
     	CMB,
@@ -122,18 +122,18 @@ mod types {
         WillSave,
     }
 
-    enum CasterType {
+    pub enum CasterType {
         Spontaneous,
         Prepared,
     }
 
-    enum ComponentType {
+    pub enum ComponentType {
         Somatic,
         Material,
         Verbal,
     }
 
-    enum MagicSchool {    
+    pub enum MagicSchool {    
     	Abjuration, 
     	Conjuration, 
     	Divination, 
@@ -144,7 +144,7 @@ mod types {
 	    Transmutation,
     }
 
-    enum SpellRange {
+    pub enum SpellRange {
         Personal,
         Touch,
         Close,
@@ -153,7 +153,7 @@ mod types {
         Unlimited,
     }
 
-    enum WeaponClass {
+    pub enum WeaponClass {
     	Axes, 
     	HeavyBlades, 
     	LightBlades, 
@@ -173,13 +173,13 @@ mod types {
         Tribal,
     }
 
-    enum ArmorClass {
+    pub enum ArmorClass {
         Light,
         Medium,
         Heavy,
     }
 
-    enum EquipmentSlot {
+    pub enum EquipmentSlot {
     	NoSlot,
     	Armor, 
     	Belts, 
@@ -198,7 +198,7 @@ mod types {
         Wrist,
     }
 
-    enum DamageType {
+    pub enum DamageType {
     	Bludgeoning, 
     	Slashing, 
     	Piercing, 
@@ -212,21 +212,47 @@ mod types {
     	Negative, 
 	    Nonlethal,
     }
-);
-
 }
 
-mod entities {
-    mod user {
-        #[derive(Serialize, Deserialize, Debug)]
-        struct user { 
-            id: Uuid,
+pub mod entities {
+    pub mod character {
+        //use serde::{Serialize,Deserialize};
+        use super::super::types;
 
-            email: String,
-            username: String,
-            is_admin: bool,
+        pub struct Character {
+            name: String,
+            age: u32,
+            gender: types::Gender,
+            alignment: types::Alignment,
+            backstory: String,
+            height: u32,
+            weight: u32,
+            size: types::Size,
 
+            strength: u8,
+            dexterity: u8,
+            constitution: u8,
+            intelligence: u8,
+            wisdom: u8,
 
+            max_hp: u32,
+            damage: u32,
+            nonlethal: u32,
+
+            copper: u32,
+            silver: u32,
+            gold: u32,
+            platinum: u32,
+        }
+    }
+
+    pub mod race {
+        use super::super::types;
+        pub struct race {
+            name: String,
+            move_speed: u32,
+            size: types::Size,
+            languages: [String, 256],
         }
     }
 }
