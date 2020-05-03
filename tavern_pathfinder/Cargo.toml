@@ -24,3 +24,4 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 uuid = "0.8"
 serde = "1.0.106"
+byte = "0.3"
