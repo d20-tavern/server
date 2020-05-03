@@ -384,9 +384,9 @@ CREATE TABLE IF NOT EXISTS characterSubclasses (
 CREATE TABLE IF NOT EXISTS Feats (
 	feat_id			UUID PRIMARY KEY,
 
-	short_description	TEXT,
+	short_description	TEXT
+		NOT NULL,
 	long_description	TEXT
-		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS SkillReqUnits (
@@ -707,9 +707,9 @@ CREATE TABLE IF NOT EXISTS Materials (
 --Effects tables
 CREATE TABLE IF NOT EXISTS Effects (
 	effect_id		UUID PRIMARY KEY,
-	short_description	TEXT,
+	short_description	TEXT
+		NOT NULL,
 	long_description	TEXT
-		NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS RaceEffects (
