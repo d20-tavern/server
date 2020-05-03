@@ -216,18 +216,18 @@ pub mod types {
 
 pub mod entities {
     pub mod character {
-        //use serde::{Serialize,Deserialize};
+        use serde::{Serialize,Deserialize};
         use super::super::types;
 
         pub struct Character {
             name: String,
             age: u32,
-            gender: types::Gender,
-            alignment: types::Alignment,
+            //gender: types::Gender,
+            //alignment: types::Alignment,
             backstory: String,
             height: u32,
             weight: u32,
-            size: types::Size,
+            //size: types::Size,
 
             strength: u8,
             dexterity: u8,
@@ -247,12 +247,34 @@ pub mod entities {
     }
 
     pub mod race {
+        use serde::{Serialize,Deserialize};
         use super::super::types;
+        
         pub struct race {
             name: String,
             move_speed: u32,
-            size: types::Size,
+            //size: types::Size,
             languages: [String, 256],
+        }
+    }
+
+    pub mod raceType {
+        use serde::{Serialize,Deserialize};
+        use super::super::types;
+        
+        pub struct raceType {
+            name: String,
+            hit_die: String,
+            bab_per_hit_die: f32,
+        }
+    }
+
+    pub mod raceSubtype {
+        use serde::{Serialize,Deserialize};
+        use super::super::types;
+
+        pub struct raceSubtype {
+            name: String,
         }
     }
 }
