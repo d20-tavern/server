@@ -247,7 +247,8 @@ CREATE TABLE IF NOT EXISTS Characters (
         age             	INT 
 		NOT NULL 
 		CHECK (age > 0),
-        gender          	Gender,
+        gender          	Gender
+		NOT NULL,
         alignment       	Alignment 
 		NOT NULL,
         backstory       	TEXT,
