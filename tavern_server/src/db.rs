@@ -25,7 +25,7 @@ mod tests {
     }
     #[test]
     fn postgres_database_init() {
-        assert!(true;
+        assert!(true);
     }
 }
 
