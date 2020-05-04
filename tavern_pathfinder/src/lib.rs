@@ -217,8 +217,9 @@ pub mod types {
 pub mod entities {
     pub mod character {
         use serde::{Serialize,Deserialize};
-        use super::super::types;
+        use crate::types;
 
+        #[derive(Serialize, Deserialize)]
         pub struct Character {
             name: String,
             age: u32,
@@ -229,11 +230,11 @@ pub mod entities {
             weight: u32,
             //size: types::Size,
 
-            strength: u8,
-            dexterity: u8,
-            constitution: u8,
-            intelligence: u8,
-            wisdom: u8,
+            strength: u32,
+            dexterity: u32,
+            constitution: u32,
+            intelligence: u32,
+            wisdom: u32,
 
             max_hp: u32,
             damage: u32,
@@ -248,33 +249,201 @@ pub mod entities {
 
     pub mod race {
         use serde::{Serialize,Deserialize};
-        use super::super::types;
+        use crate::types;
         
+        #[derive(Serialize, Deserialize)]
         pub struct race {
             name: String,
             move_speed: u32,
             //size: types::Size,
-            languages: [String, 256],
+            languages: Vec<String>,
+
+            race_type: raceType::RaceType,
+            race_subtype: raceSubtype::RaceSubtype,
+        }
+        pub mod raceType {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+        
+            #[derive(Serialize, Deserialize)]
+            pub struct RaceType {
+                name: String,
+                hit_die: String,
+                bab_per_hit_die: f32,
+            }
+        }
+
+        pub mod raceSubtype {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+
+            #[derive(Serialize, Deserialize)]
+            pub struct RaceSubtype {
+                name: String,
+            }
         }
     }
 
-    pub mod raceType {
+
+    pub mod class {
         use serde::{Serialize,Deserialize};
-        use super::super::types;
-        
-        pub struct raceType {
+        use crate::types;
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Class {
             name: String,
             hit_die: String,
-            bab_per_hit_die: f32,
+            starting_wealth: String,
+            bab_per_level: f32,
+            skills_per_level: i32,
+            //skills_attr: types:Attribute,
+
+            //subclass: super::subclass::Subclass,
+        }
+
+        pub mod subclass {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+    
+            #[derive(Serialize, Deserialize)]
+            pub struct Subclass {
+                //caster_type: types::CasterType,
+                //casting_attr: types::Attribute,
+            }
         }
     }
 
-    pub mod raceSubtype {
-        use serde::{Serialize,Deserialize};
-        use super::super::types;
 
-        pub struct raceSubtype {
-            name: String,
+    pub mod feat {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Feat {
+            short_description: String,
+            long_description: String,
         }
+    }
+    pub mod feature {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Feature {
+            description: String,
+        }
+    }
+
+    pub mod spell {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Spell {
+            name: String,
+            level: u32,
+            //school: types::MagicSchool,
+
+            casting_time: u32,
+            //range: types::Range,
+            area: String,
+            duration_per_level: u32,
+            //saving_throw: types::SaveThrow,
+            spell_resistance: bool,
+            description: String,
+        }
+    }
+
+    pub mod domain {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Domain {
+            name: String,
+            description: String,
+            power_description: String,
+        }
+    }
+
+    pub mod deity {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Deity {
+            name: String,
+            description: String,
+            favored_animals: Vec<String>,
+
+        }
+    }
+
+    pub mod item {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Item {
+            name: String,
+            description: String,
+            cost: u32,
+            weight: u32,
+            //equip_slot: types::EquipmentSlot,
+        }
+
+        pub mod weapon {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+            use std::ops::Range;
+
+            #[derive(Serialize, Deserialize)]
+            pub struct Weapon {
+                weapon_range: Range<u32>,
+                crit_range: Range<u32>,
+                damage: Vec<String>,
+                //damage_type: Vec<types::DamageType>,
+                //weapon_type: WeaponClass,
+            }
+        }
+
+        pub mod armor {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+
+            #[derive(Serialize, Deserialize)]
+            pub struct Armor {
+                max_dex_bonus: u32,
+                ac: u32,
+                spell_failure: u32,
+                check_penalty: u32,
+                //armor_type: types::ArmorClass,
+            }
+        }
+
+        pub mod material {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+
+            #[derive(Serialize, Deserialize)]
+            pub struct Material {
+                name: String,
+                description: String,
+
+                hp_per_inch: u32,
+                hardness: u32,
+            }
+        }
+    }
+}
+
+pub mod effects {
+    use serde::{Serialize,Deserialize};
+    use crate::types;
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Effect {
+        short_description: String,
+        long_description: String,
     }
 }
