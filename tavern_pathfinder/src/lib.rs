@@ -1,7 +1,5 @@
 extern crate serde;
 
-use serde::{Serialize, Deserialize};
-
 #[cfg(test)]
 mod tests {
     #[test]
@@ -10,12 +8,16 @@ mod tests {
     }
 }
 pub mod types {
+    use serde::{Serialize, Deserialize};
+
+    #[derive(Serialize,Deserialize)]
     pub enum Gender {
         Male,
         Female,
         Other,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum Size {
         Fine,
         Diminutive,
@@ -28,6 +30,7 @@ pub mod types {
         Colossal,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum Alignment {
         LawfulGood,
         LawfulNeutral,
@@ -39,6 +42,7 @@ pub mod types {
         ChaoticEvil,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum Attribute {
         Strength,
         Dexterity,
@@ -48,6 +52,7 @@ pub mod types {
         Charisma,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum Skill {
        	Acrobatics, 
     	Appraise, 
@@ -85,12 +90,14 @@ pub mod types {
         UseMagicDevice,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum SaveThrow {
         Fortitude,
         Reflex,
         Will,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum CharacterStat {
     	Name,
     	Race,
@@ -105,6 +112,7 @@ pub mod types {
         Appearance,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum CombatStat {
     	MeleeAttackBonus,
     	RangedAttackBonus,
@@ -122,17 +130,20 @@ pub mod types {
         WillSave,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum CasterType {
         Spontaneous,
         Prepared,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum ComponentType {
         Somatic,
         Material,
         Verbal,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum MagicSchool {    
     	Abjuration, 
     	Conjuration, 
@@ -144,6 +155,7 @@ pub mod types {
 	    Transmutation,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum SpellRange {
         Personal,
         Touch,
@@ -153,6 +165,7 @@ pub mod types {
         Unlimited,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum WeaponClass {
     	Axes, 
     	HeavyBlades, 
@@ -173,12 +186,14 @@ pub mod types {
         Tribal,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum ArmorClass {
         Light,
         Medium,
         Heavy,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum EquipmentSlot {
     	NoSlot,
     	Armor, 
@@ -198,6 +213,7 @@ pub mod types {
         Wrist,
     }
 
+    #[derive(Serialize,Deserialize)]
     pub enum DamageType {
     	Bludgeoning, 
     	Slashing, 
@@ -223,12 +239,12 @@ pub mod entities {
         pub struct Character {
             name: String,
             age: u32,
-            //gender: types::Gender,
-            //alignment: types::Alignment,
+            gender: types::Gender,
+            alignment: types::Alignment,
             backstory: String,
             height: u32,
             weight: u32,
-            //size: types::Size,
+            size: types::Size,
 
             strength: u32,
             dexterity: u32,
@@ -255,7 +271,7 @@ pub mod entities {
         pub struct race {
             name: String,
             move_speed: u32,
-            //size: types::Size,
+            size: types::Size,
             languages: Vec<String>,
 
             race_type: raceType::RaceType,
@@ -296,9 +312,7 @@ pub mod entities {
             starting_wealth: String,
             bab_per_level: f32,
             skills_per_level: i32,
-            //skills_attr: types:Attribute,
-
-            //subclass: super::subclass::Subclass,
+            skills_attr: types::Attribute,
         }
 
         pub mod subclass {
@@ -307,8 +321,8 @@ pub mod entities {
     
             #[derive(Serialize, Deserialize)]
             pub struct Subclass {
-                //caster_type: types::CasterType,
-                //casting_attr: types::Attribute,
+                caster_type: types::CasterType,
+                casting_attr: types::Attribute,
             }
         }
     }
@@ -342,13 +356,13 @@ pub mod entities {
         pub struct Spell {
             name: String,
             level: u32,
-            //school: types::MagicSchool,
+            school: types::MagicSchool,
 
             casting_time: u32,
-            //range: types::Range,
+            range: types::SpellRange,
             area: String,
             duration_per_level: u32,
-            //saving_throw: types::SaveThrow,
+            saving_throw: types::SaveThrow,
             spell_resistance: bool,
             description: String,
         }
@@ -389,7 +403,7 @@ pub mod entities {
             description: String,
             cost: u32,
             weight: u32,
-            //equip_slot: types::EquipmentSlot,
+            equip_slot: types::EquipmentSlot,
         }
 
         pub mod weapon {
@@ -402,8 +416,8 @@ pub mod entities {
                 weapon_range: Range<u32>,
                 crit_range: Range<u32>,
                 damage: Vec<String>,
-                //damage_type: Vec<types::DamageType>,
-                //weapon_type: WeaponClass,
+                damage_type: Vec<types::DamageType>,
+                weapon_type: types::WeaponClass,
             }
         }
 
@@ -417,7 +431,7 @@ pub mod entities {
                 ac: u32,
                 spell_failure: u32,
                 check_penalty: u32,
-                //armor_type: types::ArmorClass,
+                armor_type: types::ArmorClass,
             }
         }
 
