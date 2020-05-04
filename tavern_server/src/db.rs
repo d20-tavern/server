@@ -1,5 +1,16 @@
+use crate::config;
+use crate::status;
+use futures::executor::block_on;
+use lazy_static::lazy_static;
+use sqlx::pool::PoolConnection;
+use sqlx::{PgConnection, PgPool};
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
+use std::sync::Arc;
 use structopt::StructOpt;
+use tokio::sync::RwLock;
+use warp::filters::BoxedFilter;
+use warp::{Filter, Rejection};
 
 #[cfg(test)]
 mod tests {
@@ -25,18 +36,63 @@ mod tests {
     }
 }
 
-#[derive(StructOpt, Debug)]
-pub struct PostgreSQLOpt {
-    #[structopt(long = "db-host", env = "TAVERN_DB_HOST", help = "the domain name or IP address of the database host")]
+// Error codes come from https://www.postgresql.org/docs/10/errcodes-appendix.html
+pub(crate) const PG_ERROR_CHECK_VIOLATION: &'static str = "23514";
+pub(crate) const PG_ERROR_FOREIGN_KEY_VIOLATION: &'static str = "23503";
+pub(crate) const PG_ERROR_NOT_NULL_VIOLATION: &'static str = "23502";
+pub(crate) const PG_ERROR_RESTRICT_VIOLATION: &'static str = "23001";
+pub(crate) const PG_ERROR_UNIQUE_VIOLATION: &'static str = "23505";
+
+pub(crate) type Connection = PoolConnection<PgConnection>;
+
+lazy_static! {
+    static ref POOL: Arc<RwLock<PgPool>> = {
+        let pool = config::config().database.clone().try_into().unwrap();
+        let lock = RwLock::new(pool);
+        Arc::new(lock)
+    };
+}
+
+#[derive(StructOpt, Clone, Debug)]
+pub(crate) struct PostgreSQLOpt {
+    #[structopt(
+        long = "db-host",
+        env = "TAVERN_DB_HOST",
+        help = "the domain name or IP address of the database host"
+    )]
     host: String,
-    #[structopt(long = "db-port", env = "TAVERN_DB_PORT", default_value = "5432", help = "the port PostgreSQL is listening to on the host")]
+    #[structopt(
+        long = "db-port",
+        env = "TAVERN_DB_PORT",
+        default_value = "5432",
+        help = "the port PostgreSQL is listening to on the host"
+    )]
     port: u16,
-    #[structopt(long = "db-name", env = "TAVERN_DB_NAME", help = "the name of the database Tavern will use")]
+    #[structopt(
+        long = "db-name",
+        env = "TAVERN_DB_NAME",
+        help = "the name of the database Tavern will use"
+    )]
     database: String,
-    #[structopt(long = "db-user", env = "TAVERN_DB_USER", help = "the username for the database")]
+    #[structopt(
+        long = "db-user",
+        env = "TAVERN_DB_USER",
+        help = "the username for the database"
+    )]
     user: String,
-    #[structopt(long = "db-pass", env = "TAVERN_DB_PASS", help = "the password for the database user")]
+    #[structopt(
+        long = "db-pass",
+        env = "TAVERN_DB_PASS",
+        help = "the password for the database user"
+    )]
     pass: String,
+}
+
+impl TryFrom<PostgreSQLOpt> for PgPool {
+    type Error = sqlx::Error;
+    fn try_from(opt: PostgreSQLOpt) -> Result<Self, Self::Error> {
+        block_on(PgPool::new(opt.to_string().as_ref()))
+    }
 }
 
 impl fmt::Display for PostgreSQLOpt {
@@ -47,4 +103,18 @@ impl fmt::Display for PostgreSQLOpt {
             self.host, self.port, self.database, self.user, self.pass
         )
     }
+}
+
+pub(crate) async fn get_connection() -> Result<Connection, sqlx::Error> {
+    (*POOL).read().await.acquire().await
+}
+
+async fn get_filter_connection() -> Result<Connection, Rejection> {
+    get_connection()
+        .await
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))
+}
+
+pub(crate) fn conn_filter() -> BoxedFilter<(Connection,)> {
+    warp::any().and_then(get_filter_connection).boxed()
 }
