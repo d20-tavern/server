@@ -170,7 +170,7 @@ CREATE TYPE IF NOT EXISTS ArmorClass AS ENUM (
 );
 
 CREATE TYPE IF NOT EXISTS EquipmentSlot AS ENUM (
-	'None',
+	'NoSlot',
 	'Armor', 
 	'Belts', 
 	'Body', 
