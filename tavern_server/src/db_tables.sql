@@ -208,10 +208,12 @@ CREATE TYPE IF NOT EXISTS DamageType AS ENUM (
 CREATE TABLE IF NOT EXISTS Users (
 	id     			UUID PRIMARY KEY,
 
-	email			TEXT 
-		NOT NULL,
+	email			TEXT
+		NOT NULL
+		UNIQUE,
         username       		TEXT 
-		NOT NULL,
+		NOT NULL
+		UNIQUE,
         is_admin    		BOOLEAN
 		DEFAULT false,
 
