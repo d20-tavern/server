@@ -581,4 +581,42 @@ pub mod effects {
         short_description: String,
         long_description: String,
     }
+
+    pub mod effectUnits {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+        use uuid::Uuid;
+
+        pub struct AttributeUnit {
+            attr_unit_id: Uuid,
+
+            base_attr: Attribute,
+            modifier: i32,
+        }
+
+        pub struct SkillUnit {
+            skill_unit_id: Uuid,
+            skill: types::Skill,
+            modifier: i32,
+        }
+
+        pub struct CharacterUnit {
+            char_unit_id: Uuid,
+
+            character_stat: types::CharacterStat,
+            modifier: i32
+        }
+
+        pub struct CombatUnit {
+            combat_unit_id: Uuid,
+
+            combat_stat: CombatStat,
+            modifier: i32,
+        }
+
+        pub struct MiscUnit {
+            misc_unit_id: Uuid,
+            description: String,
+        }
+    }
 }
