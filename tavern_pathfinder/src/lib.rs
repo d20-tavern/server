@@ -366,23 +366,68 @@ pub mod entities {
             short_description: String,
             long_description: String,
         }
+
+        pub mod FeatReqUnits {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+            use uuid::Uuid;
+
+            pub struct SkillFeatUnit {
+                skill_unit_id: Uuid,
+                req_skil: types::Skill,
+                ranks: u8,
+            }
+
+            pub struct AttributeFeatUnit {
+                attr_unit_id: Uuid,
+                req_attr: types::Atribute,
+                score: u8
+            }
+
+            pub struct RequiredFeat {
+                feat_id: Uuid,
+                required_feat: Uuid
+            }
+        }
     }
+
     pub mod feature {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Feature {
+            feature_id: Uuid,
             description: String,
+        }
+    }
+
+    pub mod proficiencies {
+        use serde::{Serialize,Deserialize};
+        use crate::types;
+        use uuid::Uuid;
+
+        pub struct ClassWeaponsNotProficient {
+            class_id: Uuid,
+            weapon_classes: Vec<types::WeaponClass>
+        }
+
+        pub struct ClassArmorNotProficient {
+            class_id: Uuid,
+            armor_classes: Vec<types::ArmorClass>
         }
     }
 
     pub mod spell {
         use serde::{Serialize,Deserialize};
-        use crate::types;
+        use crate::types
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Spell {
+            spell_id: Uuid,
+
             name: String,
             level: u32,
             school: types::MagicSchool,
@@ -400,21 +445,35 @@ pub mod entities {
     pub mod domain {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Domain {
+            domain_id: Uuid,
+
             name: String,
             description: String,
             power_description: String,
+        }
+
+        #[derive(Serialize, Deserialize)]
+        pub struct Subdomain {
+            domain_id: Uuid,
+
+            name: String,
+            description: String,
         }
     }
 
     pub mod deity {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Deity {
+            deity_id: Uuid,
+
             name: String,
             description: String,
             favored_animals: Vec<String>,
@@ -425,9 +484,12 @@ pub mod entities {
     pub mod item {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Item {
+            item_id: Uuid,
+
             name: String,
             description: String,
             cost: u32,
@@ -435,13 +497,33 @@ pub mod entities {
             equip_slot: types::EquipmentSlot,
         }
 
+        pub mod bag {
+            use serde::{Serialize,Deserialize};
+            use crate::types;
+            use uuid::Uuid;
+
+            #[derive(Serialize, Deserialize)]
+            pub struct Bag {
+                bag_id: Uuid,
+                char_id: Uuid,
+                item_id: Uuid,
+
+                capacity: u32,
+            }
+        }
+            
+
         pub mod weapon {
             use serde::{Serialize,Deserialize};
             use crate::types;
+            use uuid::Uuid;
             use std::ops::Range;
 
             #[derive(Serialize, Deserialize)]
             pub struct Weapon {
+                item_id: Uuid,
+                material_id: Uuid,
+
                 weapon_range: Range<u32>,
                 crit_range: Range<u32>,
                 damage: Vec<String>,
@@ -453,9 +535,13 @@ pub mod entities {
         pub mod armor {
             use serde::{Serialize,Deserialize};
             use crate::types;
+            use uuid::Uuid,
 
             #[derive(Serialize, Deserialize)]
             pub struct Armor {
+                item_id: Uuid,
+                material_id: Uuid,
+
                 max_dex_bonus: u32,
                 ac: u32,
                 spell_failure: u32,
@@ -467,9 +553,12 @@ pub mod entities {
         pub mod material {
             use serde::{Serialize,Deserialize};
             use crate::types;
+            use uuid::Uuid,
 
             #[derive(Serialize, Deserialize)]
             pub struct Material {
+                material_id: Uuid,
+
                 name: String,
                 description: String,
 
@@ -483,9 +572,12 @@ pub mod entities {
 pub mod effects {
     use serde::{Serialize,Deserialize};
     use crate::types;
+    use uuid::Uuid;
 
     #[derive(Serialize, Deserialize)]
     pub struct Effect {
+        effect_id: Uuid,
+
         short_description: String,
         long_description: String,
     }
