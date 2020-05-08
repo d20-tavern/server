@@ -15,6 +15,7 @@ use structopt::StructOpt;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
 use warp::Filter;
+use futures::executor::block_on;
 
 pub const ARGON2_HASH_LENGTH: u32 = 32;
 pub const ARGON2_SALT_LENGTH: usize = 32;
@@ -71,14 +72,131 @@ mod tests {
     fn from_form_to_registration_info_succeeds() {
         let user = "username";
         let pass = "hunter2";
+        let email = "user@domain.com";
 
         let mut form = Form::with_capacity(2);
         form.insert(FIELD_USERNAME, Field::Text(user.to_string()));
         form.insert(FIELD_PASSWORD, Field::Text(pass.to_string()));
+        form.insert(FIELD_EMAIL, Field::Text(email.to_string()));
 
         let info = RegistrationInfo::try_from(form).unwrap();
         assert_eq!(info.user.username, user);
         assert_eq!(info.password, pass);
+        assert_eq!(info.user.email, email);
+    }
+
+    #[test]
+    fn hash_succeeds() {
+        let salt = b"super secret salt";
+        let pass = b"p@ssw0rd";
+        let conf = argon2::Config::default();
+
+        let expected = argon2::hash_raw(pass, salt, &conf).unwrap();
+        
+        let hash = block_on(hash_password(pass, salt, &conf)).unwrap();
+
+        // Note: for actual application uses, argon2::verify_raw should be used instead
+        assert_eq!(expected, hash);
+    }
+
+    #[tokio::test]
+    async fn retrieves_registration_info() {
+        // get_registration_info()
+        let username = "foobar";
+        let password = "hunter2";
+        let email = "email@domain.org";
+
+        let mut form = Form::with_capacity(3);
+        form.insert(FIELD_USERNAME, Field::Text(username.to_string()));
+        form.insert(FIELD_PASSWORD, Field::Text(password.to_string()));
+        form.insert(FIELD_EMAIL, Field::Text(email.to_string()));
+
+        let info = warp::test::request()
+            .method("POST")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(form.to_url_encoded().unwrap().as_bytes())
+            .filter(&get_registration_info())
+            .await
+            .unwrap();
+
+        assert_eq!(info.user.username, username);
+        assert_eq!(info.user.email, email);
+        assert_eq!(info.password, password);
+        assert!(!info.user.is_admin);
+    }
+
+    #[tokio::test]
+    async fn retrieves_registration_info_ignores_user_id() {
+        let username = "foobar";
+        let password = "hunter2";
+        let email = "email@domain.org";
+        let id = Uuid::new_v4().to_hyphenated();
+
+        let mut form = Form::with_capacity(3);
+        form.insert(FIELD_USERNAME, Field::Text(username.to_string()));
+        form.insert(FIELD_PASSWORD, Field::Text(password.to_string()));
+        form.insert(FIELD_EMAIL, Field::Text(email.to_string()));
+        form.insert(FIELD_USER_ID, Field::Text(id.to_string()));
+
+        let info = warp::test::request()
+            .method("POST")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(form.to_url_encoded().unwrap().as_bytes())
+            .filter(&get_registration_info())
+            .await
+            .unwrap();
+
+        assert_eq!(info.user.id, None);
+    }
+
+    #[tokio::test]
+    async fn retrieves_registration_info_ignores_is_admin() {
+        let username = "foobar";
+        let password = "hunter2";
+        let email = "email@domain.org";
+
+        let mut form = Form::with_capacity(3);
+        form.insert(FIELD_USERNAME, Field::Text(username.to_string()));
+        form.insert(FIELD_PASSWORD, Field::Text(password.to_string()));
+        form.insert(FIELD_EMAIL, Field::Text(email.to_string()));
+        form.insert(FIELD_IS_ADMIN, Field::Text("false".to_string()));
+
+        let info = warp::test::request()
+            .method("POST")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(form.to_url_encoded().unwrap().as_bytes())
+            .filter(&get_registration_info())
+            .await
+            .unwrap();
+
+        assert!(!info.user.is_admin);
+    }
+
+    #[tokio::test]
+    async fn registration_to_user_and_user_auth() {
+        let pass = "hunter2";
+        let exp_user = User {
+            id: None,
+            username: "foobar".to_string(),
+            email: "example@domain.org".to_string(),
+            is_admin: false,
+        };
+        let info = RegistrationInfo {
+            user: exp_user.clone(),
+            password: pass.to_string(),
+        };
+        let salt = b"super secret salt".to_vec();
+        // TODO: Make sure it works for non-default config
+        let conf = argon2::Config::default();
+
+        let expected_hash = argon2::hash_raw(pass.as_bytes(), salt.as_slice(), &conf).unwrap();
+
+        let (user, auth) = registration_to_user_auth(info, salt.clone(), conf.clone()).await.unwrap();
+
+        assert_eq!(exp_user, user);
+        assert_eq!(expected_hash, auth.hash);
+        assert_eq!(salt, auth.salt.as_slice());
+        assert_eq!(conf, auth.config);
     }
 }
 
@@ -117,6 +235,7 @@ impl From<Argon2Opt> for argon2::Config<'static> {
     }
 }
 
+const FIELD_USER_ID: &'static str = "user-id";
 const FIELD_EMAIL: &'static str = "email";
 const FIELD_IS_ADMIN: &'static str = "is-admin";
 const FIELD_PASSWORD: &'static str = "password";
@@ -129,6 +248,19 @@ pub(crate) struct User {
     pub(crate) email: String,
     pub(crate) is_admin: bool,
 }
+
+impl PartialEq for User {
+    fn eq(&self, other: &Self) -> bool {
+        if self.id.is_some() && other.id.is_some() {
+            self.id.unwrap() == other.id.unwrap()
+        } else {
+            self.username == other.username ||
+            self.email    == other.email
+        }
+    }
+}
+
+impl Eq for User {}
 
 impl TryFrom<Form> for User {
     type Error = Rejection;
@@ -145,9 +277,28 @@ impl TryFrom<Form> for User {
                     .ok_or_else(|| forms::field_is_file_error(FIELD_IS_ADMIN))?
             })
             .unwrap_or(Ok(false))?;
+        let mut id = form
+            .get(FIELD_USER_ID)
+            .map(|field| {
+                field
+                    .as_text()
+                    .map(|val| {
+                        Uuid::parse_str(val)
+                            .map_err(|err| {
+                                forms::field_is_invalid_error(FIELD_USER_ID)
+                            })
+                    })
+                    .ok_or_else(|| forms::field_is_file_error(FIELD_USER_ID))?
+            });
+
+        // Not sure how else to extract the Result from an Option
+        let id = match id {
+            None => None,
+            Some(val) => Some(val?),
+        };
 
         Ok(User {
-            id: None,
+            id,
             username,
             email,
             is_admin,
@@ -204,7 +355,13 @@ fn generate_salt() -> BoxedFilter<(Vec<u8>,)> {
 fn get_registration_info() -> BoxedFilter<(RegistrationInfo,)> {
     warp::filters::method::post()
         .and(nebula_form::form_filter())
-        .and_then(|form: Form| async move { RegistrationInfo::try_from(form) })
+        .and_then(|form: Form| async move { 
+            RegistrationInfo::try_from(form)
+                .map(|mut info| {
+                    info.user.id = None;
+                    info
+                })
+        })
         .boxed()
 }
 
@@ -282,7 +439,7 @@ async fn register_in_database(
         .map_err(|err| status::server_error_into_rejection(err.to_string()))
 }
 
-async fn registration_to_user(
+async fn registration_to_user_auth(
     info: RegistrationInfo,
     salt: Vec<u8>,
     config: argon2::Config<'static>,
@@ -296,7 +453,7 @@ pub(crate) fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
     get_registration_info()
         .and(generate_salt())
         .and(get_argon2_config())
-        .and_then(registration_to_user)
+        .and_then(registration_to_user_auth)
         .untuple_one()
         .and(db::conn_filter())
         .and_then(register_in_database)
