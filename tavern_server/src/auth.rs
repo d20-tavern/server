@@ -15,9 +15,10 @@ use structopt::StructOpt;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
 use warp::Filter;
-use futures::executor::block_on;
 
+/// The length of an Argon2i hash, in bytes.
 pub const ARGON2_HASH_LENGTH: u32 = 32;
+/// The length of a generated salt, in bytes.
 pub const ARGON2_SALT_LENGTH: usize = 32;
 
 #[cfg(test)]
@@ -200,6 +201,9 @@ mod tests {
     }
 }
 
+/// An application-specific representation of Argon2i configuration,
+/// to make it easier to read related configurations from the ENV,
+/// command-line and the database.
 #[derive(StructOpt, Clone, Debug)]
 pub struct Argon2Opt {
     #[structopt(
@@ -235,17 +239,29 @@ impl From<Argon2Opt> for argon2::Config<'static> {
     }
 }
 
+/// The expected form field name for the user ID.
 const FIELD_USER_ID: &'static str = "user-id";
+/// The expected form field name for the user's email.
 const FIELD_EMAIL: &'static str = "email";
+/// The expected form field name for whether the user is an admin
+/// or not (ignored in certain contexts).
 const FIELD_IS_ADMIN: &'static str = "is-admin";
+/// The expected form field name for the user's password.
 const FIELD_PASSWORD: &'static str = "password";
+/// The expected form field name for the user's username.
 const FIELD_USERNAME: &'static str = "username";
 
+/// Represents a user of the application.
 #[derive(Serialize, Clone, Debug)]
 pub(crate) struct User {
+    /// The User's unique ID. If None, this user is being registered
+    /// or is invalid.
     pub(crate) id: Option<Uuid>,
+    /// The User's username.
     pub(crate) username: String,
+    /// The User's email address.
     pub(crate) email: String,
+    /// Whether the User is an admin or not.
     pub(crate) is_admin: bool,
 }
 
@@ -312,12 +328,17 @@ impl From<User> for Bytes {
     }
 }
 
+/// Represents a User's authentication parameters. Used to help authenticate
+/// the user without passing this information around to the rest of the
+/// program.
 struct UserAuth {
     hash: Vec<u8>,
     salt: Vec<u8>,
     config: argon2::Config<'static>,
 }
 
+/// Contains all of the necessary information related to registering a
+/// user.
 struct RegistrationInfo {
     user: User,
     password: String,
@@ -337,6 +358,7 @@ impl TryFrom<Form> for RegistrationInfo {
     }
 }
 
+/// A warp Filter to randomly generate a salt for a user.
 fn generate_salt() -> BoxedFilter<(Vec<u8>,)> {
     warp::any()
         .and_then(|| async move {
@@ -352,6 +374,8 @@ fn generate_salt() -> BoxedFilter<(Vec<u8>,)> {
         .boxed()
 }
 
+/// A warp Filter that receives the submitted registration form and parses
+/// it to extract the required registration information.
 fn get_registration_info() -> BoxedFilter<(RegistrationInfo,)> {
     warp::filters::method::post()
         .and(nebula_form::form_filter())
@@ -365,12 +389,17 @@ fn get_registration_info() -> BoxedFilter<(RegistrationInfo,)> {
         .boxed()
 }
 
+/// A warp Filter that provides a copy of the server's current Argon2
+/// configuration.
 fn get_argon2_config() -> BoxedFilter<(argon2::Config<'static>,)> {
     config::filter()
         .map(|conf: &'static config::Config| conf.argon2.clone().into())
         .boxed()
 }
 
+/// Asynchronously hashes the given password with the given salt and =
+/// configuration. Primarily a wrapper to convert errors into ones the server
+/// can use.
 async fn hash_password(
     password: &[u8],
     salt: &[u8],
@@ -380,6 +409,10 @@ async fn hash_password(
         .map_err(|err| status::server_error_into_rejection(err.to_string()).into())
 }
 
+/// Takes the given User and UserAuth information, and uses the provided
+/// database connection to insert the new user into the database. Attempts to
+/// differentiate server errors from client errors (i.e. using a username/email
+/// that is already taken).
 async fn register_in_database(
     user: User,
     auth: UserAuth,
@@ -439,6 +472,7 @@ async fn register_in_database(
         .map_err(|err| status::server_error_into_rejection(err.to_string()))
 }
 
+/// Asynchronously convert a RegistrationInfo into a User and a UserAuth.
 async fn registration_to_user_auth(
     info: RegistrationInfo,
     salt: Vec<u8>,
@@ -449,6 +483,7 @@ async fn registration_to_user_auth(
     Ok((info.user, user_auth))
 }
 
+/// A warp Filter containing the full registration endpoint.
 pub(crate) fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
     get_registration_info()
         .and(generate_salt())
