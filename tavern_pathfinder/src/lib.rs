@@ -1,4 +1,5 @@
 extern crate serde;
+extern crate uuid;
 
 #[cfg(test)]
 mod tests {
@@ -234,9 +235,15 @@ pub mod entities {
     pub mod character {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Character {
+            id: Uuid,
+            char_id: Uuid,
+            race_id: Uuid,
+            deity_id: Uuid,
+
             name: String,
             age: u32,
             gender: types::Gender,
@@ -266,23 +273,33 @@ pub mod entities {
     pub mod race {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
         
         #[derive(Serialize, Deserialize)]
         pub struct race {
+            race_id: Uuid,
+            type_id: Uuid,
+            subtype_id: Uuid,
+
             name: String,
             move_speed: u32,
             size: types::Size,
             languages: Vec<String>,
 
-            race_type: raceType::RaceType,
-            race_subtype: raceSubtype::RaceSubtype,
+            //Possible alternative to Uuids
+            //
+            //race_type: raceType::RaceType,
+            //race_subtype: raceSubtype::RaceSubtype,
         }
         pub mod raceType {
             use serde::{Serialize,Deserialize};
             use crate::types;
-        
+            use uuid::Uuid;
+
             #[derive(Serialize, Deserialize)]
             pub struct RaceType {
+                type_id: Uuid,
+
                 name: String,
                 hit_die: String,
                 bab_per_hit_die: f32,
@@ -292,9 +309,11 @@ pub mod entities {
         pub mod raceSubtype {
             use serde::{Serialize,Deserialize};
             use crate::types;
+            use uuid::Uuid;
 
             #[derive(Serialize, Deserialize)]
             pub struct RaceSubtype {
+                subtype_id: Uuid,
                 name: String,
             }
         }
@@ -304,9 +323,12 @@ pub mod entities {
     pub mod class {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Class {
+            class_id: Uuid,
+
             name: String,
             hit_die: String,
             starting_wealth: String,
@@ -318,9 +340,13 @@ pub mod entities {
         pub mod subclass {
             use serde::{Serialize,Deserialize};
             use crate::types;
+            use uuid::Uuid;
     
             #[derive(Serialize, Deserialize)]
             pub struct Subclass {
+                subclass_id: Uuid,
+                class_id: Uuid,
+
                 caster_type: types::CasterType,
                 casting_attr: types::Attribute,
             }
@@ -331,9 +357,12 @@ pub mod entities {
     pub mod feat {
         use serde::{Serialize,Deserialize};
         use crate::types;
+        use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
         pub struct Feat {
+            feat_id: Uuid,
+
             short_description: String,
             long_description: String,
         }
