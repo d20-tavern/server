@@ -380,7 +380,7 @@ pub mod entities {
 
             pub struct AttributeFeatUnit {
                 attr_unit_id: Uuid,
-                req_attr: types::Atribute,
+                req_attr: types::Attribute,
                 score: u8
             }
 
@@ -421,7 +421,7 @@ pub mod entities {
 
     pub mod spell {
         use serde::{Serialize,Deserialize};
-        use crate::types
+        use crate::types;
         use uuid::Uuid;
 
         #[derive(Serialize, Deserialize)]
@@ -535,7 +535,7 @@ pub mod entities {
         pub mod armor {
             use serde::{Serialize,Deserialize};
             use crate::types;
-            use uuid::Uuid,
+            use uuid::Uuid;
 
             #[derive(Serialize, Deserialize)]
             pub struct Armor {
@@ -553,7 +553,7 @@ pub mod entities {
         pub mod material {
             use serde::{Serialize,Deserialize};
             use crate::types;
-            use uuid::Uuid,
+            use uuid::Uuid;
 
             #[derive(Serialize, Deserialize)]
             pub struct Material {
@@ -590,7 +590,7 @@ pub mod effects {
         pub struct AttributeUnit {
             attr_unit_id: Uuid,
 
-            base_attr: Attribute,
+            base_attr: types::Attribute,
             modifier: i32,
         }
 
@@ -610,7 +610,7 @@ pub mod effects {
         pub struct CombatUnit {
             combat_unit_id: Uuid,
 
-            combat_stat: CombatStat,
+            combat_stat: types::CombatStat,
             modifier: i32,
         }
 
