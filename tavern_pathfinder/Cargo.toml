@@ -23,3 +23,4 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 serde = {Version = "1.0.106", features = ["derive"]}
+uuid = {Version = "0.2", features = ["serde"]}
