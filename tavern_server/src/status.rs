@@ -5,18 +5,18 @@ use warp::Rejection;
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn it_works() {}
+    use super::*;
 
     #[test]
     fn auto_server_error_is_500_and_has_message() {
         let msg = "an error message";
         let rej = server_error_into_rejection(msg.to_string());
 
-        let status: Status<Error> = Status::recover(rej);
+        let status: Status<Error> = Status::recover(rej)
+            .expect("rejection should contain a status");
 
-        assert_eq!(status.code(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(status.data().message, msg);
+        assert_eq!(status.code(), &StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(status.data().unwrap().message, msg);
     }
 }
 

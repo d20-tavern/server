@@ -25,6 +25,7 @@ pub const ARGON2_SALT_LENGTH: usize = 32;
 mod tests {
     use super::*;
     use nebula_form::{Field, Form};
+    use futures::executor::block_on;
 
     const TEST_MEMORY: u32 = 1024u32;
     const TEST_TIME_COST: u32 = 10u32;
