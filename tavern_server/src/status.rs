@@ -31,6 +31,10 @@ pub(crate) fn server_error_into_rejection(msg: String) -> Rejection {
     Status::with_data(&StatusCode::INTERNAL_SERVER_ERROR, Error::new(msg)).into()
 }
 
+pub(crate) fn invalid_header_error(header: &str) -> Rejection {
+    Status::with_data(&StatusCode::BAD_REQUEST, Error::new(format!("invalid header: {}", header))).into()
+}
+
 /// The application error type. This exists primarily to enable serialization
 /// into the appropriate JSON format.
 #[derive(Serialize, Clone, Debug)]

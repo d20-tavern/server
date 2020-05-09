@@ -10,11 +10,14 @@ use serde::Serialize;
 use sqlx::types::Uuid;
 use sqlx::Error as SQLError;
 use sqlx::{Connection, PgConnection};
+use sqlx::postgres::PgRow;
+use sqlx::{Cursor, FromRow, Row};
 use std::convert::TryFrom;
 use structopt::StructOpt;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
 use warp::Filter;
+use http::HeaderValue;
 
 /// The length of an Argon2i hash, in bytes.
 pub const ARGON2_HASH_LENGTH: u32 = 32;
@@ -200,6 +203,23 @@ mod tests {
         assert_eq!(salt, auth.salt.as_slice());
         assert_eq!(conf, auth.config);
     }
+    
+    #[tokio::test]
+    async fn get_credentials_from_header() {
+        let username = "justsomeone";
+        let password = "this:contains:colons";
+        let data = base64::encode(format!("{}:{}", username, password));
+        let resp = warp::test::request()
+            .method("POST")
+            .header(http::header::AUTHORIZATION, format!("Basic {}", data))
+            .filter(&credentials_from_header())
+            .await
+            .unwrap();
+
+        let (u, p) = resp;
+        assert_eq!(&u, username);
+        assert_eq!(&p, password);
+    }
 }
 
 /// An application-specific representation of Argon2i configuration,
@@ -225,6 +245,16 @@ pub struct Argon2Opt {
         help = "the number of threads to use while hashing"
     )]
     threads: u32,
+}
+
+impl<'c> FromRow<'c, PgRow<'c>> for Argon2Opt {
+    fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
+        let memory: u32 = row.try_get("memory")?;
+        let time_cost: u32 = row.try_get("time_cost")?;
+        let threads: u32 = row.try_get("threads")?;
+
+        Ok(Argon2Opt{ memory, time_cost, threads })
+    }
 }
 
 impl From<Argon2Opt> for argon2::Config<'static> {
@@ -323,6 +353,17 @@ impl TryFrom<Form> for User {
     }
 }
 
+impl<'c> FromRow<'c, PgRow<'c>> for User {
+    fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
+        let id: Uuid = row.try_get("id")?;
+        let username: String = row.try_get("username")?;
+        let email: String = row.try_get("email")?;
+        let is_admin: bool = row.try_get("is_admin")?;
+
+        Ok(User{ id: Some(id), username, email, is_admin })
+    }
+}
+
 impl From<User> for Bytes {
     fn from(user: User) -> Self {
         status::serialize_to_bytes(&user)
@@ -336,6 +377,23 @@ struct UserAuth {
     hash: Vec<u8>,
     salt: Vec<u8>,
     config: argon2::Config<'static>,
+}
+
+impl UserAuth {
+    fn is_valid(&self, pass: &str) -> Result<bool, Rejection> {
+        argon2::verify_raw(pass.as_bytes(), &self.salt, &self.hash, &self.config)
+            .map_err(|err| status::server_error_into_rejection(err.to_string()))
+    }
+}
+
+impl<'c> FromRow<'c, PgRow<'c>> for UserAuth {
+    fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
+        let hash: Vec<u8> = row.try_get("pass_hash")?;
+        let salt: Vec<u8> = row.try_get("salt")?;
+        let config = Argon2Opt::from_row(row)?.into();
+
+        Ok(UserAuth { hash, salt, config })
+    }
 }
 
 /// Contains all of the necessary information related to registering a
@@ -493,5 +551,79 @@ pub(crate) fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
         .untuple_one()
         .and(db::conn_filter())
         .and_then(register_in_database)
+        .boxed()
+}
+
+fn reject_login_required() -> Rejection {
+    let mut status = Status::new(&StatusCode::UNAUTHORIZED);
+    status.headers_mut().insert(http::header::WWW_AUTHENTICATE, HeaderValue::from_static("Basic"));
+    status.into()
+}
+
+fn credentials_from_header() -> BoxedFilter<(String, String,)> {
+    let auth_header: &'static str = http::header::AUTHORIZATION.as_ref();
+    warp::filters::header::header::<String>(auth_header)
+        .and_then(move |val: String| async move {
+            let params = val.split_whitespace()
+                .collect::<Vec<&str>>();
+
+            let method = params.get(0)
+                .ok_or_else(|| status::invalid_header_error(auth_header))?;
+
+            if !method.eq_ignore_ascii_case("basic") {
+                return Err(status::invalid_header_error(auth_header));
+            }
+
+            let encoded = params.get(1)
+                .ok_or_else(|| status::invalid_header_error(auth_header))?;
+
+            let decoded = base64::decode(encoded)
+                .map_err(|_| status::invalid_header_error(auth_header))?;
+            
+            let decoded = std::str::from_utf8(decoded.as_slice())
+                .map_err(|_| status::invalid_header_error(auth_header))?;
+
+            let colon = decoded.find(':')
+                .ok_or_else(|| status::invalid_header_error(auth_header))?;
+            let (username, password) = decoded.split_at(colon);
+            Ok((username.to_string(), password[1..].to_string()))            
+        })
+        .untuple_one()
+        .boxed()
+}
+
+async fn user_from_credentials(user: String, pass: String, conn: db::Connection) -> Result<User, Rejection> {
+    let mut tx = conn
+        .begin()
+        .await
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+
+    let query = sqlx::query(r"SELECT * FROM Users WHERE username = $1")
+        .bind(&user);
+
+    let mut rows = query.fetch(&mut tx);
+
+    let row = rows.next().await
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))?
+        .ok_or_else(|| reject_login_required())?;
+
+    let user = User::from_row(&row)
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+    let auth = UserAuth::from_row(&row)
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+
+    tx.commit().await.map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+
+    if auth.is_valid(&pass)? {
+        Ok(user)
+    } else {
+        Err(reject_login_required())
+    }
+}
+
+pub(crate) fn login_filter() -> BoxedFilter<(User,)> {
+    credentials_from_header()
+        .and(db::conn_filter())
+        .and_then(user_from_credentials)
         .boxed()
 }
