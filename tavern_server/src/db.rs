@@ -23,6 +23,10 @@ mod tests {
         assert!(conn_string.contains("user=foo"));
         assert!(conn_string.contains("password=bar"));
     }
+    #[test]
+    fn postgres_database_init() {
+        assert!(true);
+    }
 }
 
 #[derive(StructOpt, Debug)]
