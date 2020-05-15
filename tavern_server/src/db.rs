@@ -34,6 +34,10 @@ mod tests {
         assert!(conn_string.contains("user=foo"));
         assert!(conn_string.contains("password=bar"));
     }
+    #[test]
+    fn postgres_database_init() {
+        assert!(true);
+    }
 }
 
 // Error codes come from https://www.postgresql.org/docs/10/errcodes-appendix.html
