@@ -16,7 +16,7 @@ use std::convert::TryFrom;
 use structopt::StructOpt;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
-use warp::Filter;
+use warp::{Filter, Reply};
 use http::HeaderValue;
 
 /// The length of an Argon2i hash, in bytes.
@@ -621,9 +621,15 @@ async fn user_from_credentials(user: String, pass: String, conn: db::Connection)
     }
 }
 
-pub(crate) fn login_filter() -> BoxedFilter<(User,)> {
+pub(crate) fn user_filter() -> BoxedFilter<(User,)> {
     credentials_from_header()
         .and(db::conn_filter())
         .and_then(user_from_credentials)
+        .boxed()
+}
+
+pub(crate) fn login_filter() -> BoxedFilter<(impl Reply,)> {
+    user_filter()
+        .map(|_| (Status::new(&StatusCode::OK),))
         .boxed()
 }
