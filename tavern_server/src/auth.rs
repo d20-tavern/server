@@ -554,12 +554,15 @@ pub(crate) fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
         .boxed()
 }
 
+/// Generate a Rejection that tells the client that authentication is required
+/// for this resource.
 fn reject_login_required() -> Rejection {
     let mut status = Status::new(&StatusCode::UNAUTHORIZED);
     status.headers_mut().insert(http::header::WWW_AUTHENTICATE, HeaderValue::from_static("Basic"));
     status.into()
 }
 
+/// Parse the Authorization header for user credentials
 fn credentials_from_header() -> BoxedFilter<(String, String,)> {
     let auth_header: &'static str = http::header::AUTHORIZATION.as_ref();
     warp::filters::header::header::<String>(auth_header)
@@ -592,6 +595,8 @@ fn credentials_from_header() -> BoxedFilter<(String, String,)> {
         .boxed()
 }
 
+/// Given the user credentials and a database connection, authenticate and,
+/// if authenticated, create a User struct and return it.
 async fn user_from_credentials(user: String, pass: String, conn: db::Connection) -> Result<User, Rejection> {
     let mut tx = conn
         .begin()
@@ -621,6 +626,7 @@ async fn user_from_credentials(user: String, pass: String, conn: db::Connection)
     }
 }
 
+/// A Filter that provides an instance of the authenticated user.
 pub(crate) fn user_filter() -> BoxedFilter<(User,)> {
     credentials_from_header()
         .and(db::conn_filter())
@@ -628,6 +634,7 @@ pub(crate) fn user_filter() -> BoxedFilter<(User,)> {
         .boxed()
 }
 
+/// An endpoint that tests if the user credentials are correct and nothing more.
 pub(crate) fn login_filter() -> BoxedFilter<(impl Reply,)> {
     user_filter()
         .map(|_| (Status::new(&StatusCode::OK),))

@@ -7,6 +7,7 @@ pub mod db;
 pub mod forms;
 pub mod status;
 
+/// Generate a warp Filter containing the full server and return it.
 pub fn setup_server() -> BoxedFilter<(impl Reply,)> {
     let login = warp::get()
                     .and(warp::path("login"))
