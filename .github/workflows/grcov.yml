@@ -21,12 +21,30 @@ jobs:
           toolchain: nightly
           override: true
 
+      - name: Set up PostgreSQL
+        uses: Harmon758/postgresql-action@v1.0.0
+        with:
+          postgresql version: '12'
+          postgresql db: "tavern_test"
+          postgresql user: "tavern"
+          postgresql password: "tavernpassword"
+
       - name: Execute tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all
+          args: --all --features test-db
         env:
+          TAVERN_DB_HOST: 127.0.0.1
+          TAVERN_DB_PORT: 5432
+          TAVERN_DB_NAME: "tavern_test"
+          TAVERN_DB_USER: "tavern"
+          TAVERN_DB_PASS: "tavernpassword"
+          TAVERN_ARGON2_THREADS: 2
+          TAVERN_ARGON2_MEMORY: 512
+          # Number of passes -- no clue what is appropriate
+          TAVERN_ARGON2_100: 100
+          RUST_TEST_THREADS: 1
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
 
