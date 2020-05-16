@@ -3,7 +3,7 @@ use crate::status;
 use futures::executor::block_on;
 use lazy_static::lazy_static;
 use sqlx::pool::PoolConnection;
-use sqlx::{Connection as _, PgConnection, PgPool};
+use sqlx::{Connection as _, Executor, PgConnection, PgPool};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::sync::Arc;
@@ -61,20 +61,11 @@ impl fmt::Display for Error {
 }
 
 pub async fn init() -> Result<(), Error> {
-    let conn: Connection = get_connection().await?;
-    let mut tx = conn.begin().await
-        .map_err(|err| Error::Transaction(err))?;
+    let mut conn: Connection = get_connection().await?;
     let sql = std::str::from_utf8(include_bytes!("db_tables.sql"))
         .map_err(|err| Error::LoadQuery(err))?;
-
-    for sqline in sql.split("\n\n") {
-        println!("{}", sqline);
-        sqlx::query(sqline).execute(&mut tx).await
+    conn.execute(sql).await
             .map_err(|err| Error::RunQuery(err))?;
-    }
-
-    tx.commit().await
-        .map_err(|err| Error::Transaction(err))?;
     Ok(())
 }
 
