@@ -30,12 +30,21 @@ jobs:
           postgresql user: "tavern"
           postgresql password: "tavernpassword"
 
+      - name: Execute tests (without db)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+
       - name: Execute tests (with db)
         uses: actions-rs/cargo@v1
         if: runner.os == 'Linux'
         with:
           command: test
-          args: --all --features test-db
+          args: --all --manifest-path tavern_server/Cargo.toml --features test-db
         env:
           TAVERN_DB_HOST: 127.0.0.1
           TAVERN_DB_PORT: 5432
@@ -47,16 +56,6 @@ jobs:
           # Number of passes -- no clue what is appropriate
           TAVERN_ARGON2_100: 100
           RUST_TEST_THREADS: 1
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-
-      - name: Execute tests (without db)
-        uses: actions-rs/cargo@v1
-        if: runner.os != 'Linux'
-        with:
-          command: test
-          args: --all
-        env:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
 
