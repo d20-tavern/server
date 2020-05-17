@@ -11,4 +11,4 @@ test:
 test-db:
 	env | sort
 	export RUST_TEST_THREADS=1
-	cargo test --features test-db
+	cargo test --features db-test
