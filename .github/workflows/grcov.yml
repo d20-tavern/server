@@ -23,7 +23,7 @@ jobs:
 
       - name: Set up PostgreSQL
         uses: Harmon758/postgresql-action@v1.0.0
-        if: runner.os != Windows
+        if: runner.os != "Windows"
         with:
           postgresql version: '12'
           postgresql db: "tavern_test"
