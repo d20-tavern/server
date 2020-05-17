@@ -54,7 +54,7 @@ jobs:
           TAVERN_ARGON2_THREADS: 2
           TAVERN_ARGON2_MEMORY: 512
           # Number of passes -- no clue what is appropriate
-          TAVERN_ARGON2_100: 100
+          TAVERN_ARGON2_TIME_COST: 100
           RUST_TEST_THREADS: 1
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
