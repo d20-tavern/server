@@ -24,15 +24,17 @@ pub struct CharacterSummary {
 
 #[derive(Serialize,Deserialize)]
 pub struct Character {
+    links: HashMap<&str, Link>,
+
     id: Uuid,
     race: Race,
     deity: religion::Deity,
 
-    classes: Vec<class::Class>,
-    feats: Vec<feat::Feat>,
-    spells: Vec<spell::Spell>,
+    classes: Vec<class::ClassSummary>,
+    feats: Vec<feat::FeatSummary>,
+    spells: Vec<spell::SpellSummary>,
     bags: Vec<item::Bag>,
-    active_effects: Vec<effects::Effect>,
+    active_effects: Vec<effects::EffectSummary>,
 
     name: String,
     age: u32,
