@@ -5,11 +5,24 @@ use crate::Skill;
 use crate::Attribute;
 
 #[derive(Serialize,Deserialize)]
+pub struct FeatSummary {
+    id: Uuid,
+    name: String,
+    description: String,
+}
+
+#[derive(Serialize,Deserialize)]
 pub struct Feat {
+    links: HashMap<&str, Link>,
+
     id: Uuid,
 
     short_description: String,
     long_description: Option<String>,
+
+    req_skills: Option<Vec<SkillFeatUnit>>,
+    req_attr: Option<Vec<AttributeFeatUnit>>,
+    req_feats: Option<Vec<RequiredFeat>>,
 }
 
 #[derive(Serialize,Deserialize)]
