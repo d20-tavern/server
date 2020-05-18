@@ -271,29 +271,29 @@ impl From<Argon2Opt> for argon2::Config<'static> {
 }
 
 /// The expected form field name for the user ID.
-const FIELD_USER_ID: &'static str = "user-id";
+pub const FIELD_USER_ID: &'static str = "user-id";
 /// The expected form field name for the user's email.
-const FIELD_EMAIL: &'static str = "email";
+pub const FIELD_EMAIL: &'static str = "email";
 /// The expected form field name for whether the user is an admin
 /// or not (ignored in certain contexts).
-const FIELD_IS_ADMIN: &'static str = "is-admin";
+pub const FIELD_IS_ADMIN: &'static str = "is-admin";
 /// The expected form field name for the user's password.
-const FIELD_PASSWORD: &'static str = "password";
+pub const FIELD_PASSWORD: &'static str = "password";
 /// The expected form field name for the user's username.
-const FIELD_USERNAME: &'static str = "username";
+pub const FIELD_USERNAME: &'static str = "username";
 
 /// Represents a user of the application.
 #[derive(Serialize, Clone, Debug)]
-pub(crate) struct User {
+pub struct User {
     /// The User's unique ID. If None, this user is being registered
     /// or is invalid.
-    pub(crate) id: Option<Uuid>,
+    pub id: Option<Uuid>,
     /// The User's username.
-    pub(crate) username: String,
+    pub username: String,
     /// The User's email address.
-    pub(crate) email: String,
+    pub email: String,
     /// Whether the User is an admin or not.
-    pub(crate) is_admin: bool,
+    pub is_admin: bool,
 }
 
 impl PartialEq for User {
@@ -543,7 +543,7 @@ async fn registration_to_user_auth(
 }
 
 /// A warp Filter containing the full registration endpoint.
-pub(crate) fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
+pub fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
     get_registration_info()
         .and(generate_salt())
         .and(get_argon2_config())
@@ -627,7 +627,7 @@ async fn user_from_credentials(user: String, pass: String, conn: db::Connection)
 }
 
 /// A Filter that provides an instance of the authenticated user.
-pub(crate) fn user_filter() -> BoxedFilter<(User,)> {
+pub fn user_filter() -> BoxedFilter<(User,)> {
     credentials_from_header()
         .and(db::conn_filter())
         .and_then(user_from_credentials)
@@ -635,7 +635,7 @@ pub(crate) fn user_filter() -> BoxedFilter<(User,)> {
 }
 
 /// An endpoint that tests if the user credentials are correct and nothing more.
-pub(crate) fn login_filter() -> BoxedFilter<(impl Reply,)> {
+pub fn login_filter() -> BoxedFilter<(impl Reply,)> {
     user_filter()
         .map(|_| (Status::new(&StatusCode::OK),))
         .boxed()
