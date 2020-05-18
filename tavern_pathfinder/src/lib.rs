@@ -230,6 +230,11 @@ pub enum DamageType {
 	Nonlethal,
 }
 
+//REST API link struct
+pub struct Link {
+    rel: String,
+    url: String/Url,
+}
 
 pub mod character;
 pub mod class;
