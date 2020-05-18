@@ -2,6 +2,13 @@ use serde::{Serialize,Deserialize};
 use uuid::Uuid;
 
 #[derive(Serialize,Deserialize)]
+pub struct DeitySummary {
+    id: Uuid,
+    name: String,
+    domains: Vec<String>,   //name fields from Domains
+}
+
+#[derive(Serialize,Deserialize)]
 pub struct Deity {
     id: Uuid,
 
