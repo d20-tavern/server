@@ -1,6 +1,7 @@
 use serde::{Serialize,Deserialize};
-use crate::character;
 use uuid::Uuid;
+use std::collections::HashMap;
+use crate::Link;
 
 use crate::EquipmentSlot;
 use crate::DamageType;
@@ -8,6 +9,7 @@ use crate::WeaponClass;
 use crate::ArmorClass;
 
 use crate::effects;
+use crate::character;
 
 #[derive(Serialize,Deserialize)]
 pub struct ItemSummary {
@@ -17,7 +19,8 @@ pub struct ItemSummary {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Item {
+pub struct Item<'a> {
+    links: HashMap<&'a str, Link>,
     id: Uuid,
 
     name: String,
