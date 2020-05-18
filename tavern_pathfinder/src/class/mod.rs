@@ -3,7 +3,6 @@ use uuid::Uuid;
 
 use crate::Attribute;
 use crate::CasterType;
-use proficiencies;
 
 #[derive(Serialize,Deserialize)]
 pub struct Class {
@@ -35,3 +34,5 @@ pub struct Feature {
     id: Uuid,
     description: String,
 }
+
+pub mod proficiencies;
