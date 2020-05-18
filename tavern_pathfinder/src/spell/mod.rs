@@ -1,24 +1,33 @@
 use serde::{Serialize,Deserialize}; 
 use uuid::Uuid;
 
+use crate::MagicSchool;
+use crate::Spellrange;
+use crate::SaveThrow;
+use crate::ComponentType;
+
+use crate::item;
+
 #[derive(Serialize,Deserialize)]
 pub struct Spell {
-    spell_id: Uuid,
-
+    id: Uuid,
+    components: Vec<SpellComponent>,
     name: String,
     level: u32,
-    school: crate::MagicSchool,
+    school: MagicSchool,
 
     casting_time: u32,
-    range: crate::SpellRange,
+    range: SpellRange,
     area: String,
     duration_per_level: u32,
-    saving_throw: crate::SaveThrow,
+    saving_throw: SaveThrow,
     spell_resistance: bool,
     description: String,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct SpellComponent {
-    spell: Spell,
+    component_type: ComponentType,
+    item: Option<item::Item>,
+    item_amount: u32,
 }
