@@ -19,12 +19,14 @@ pub struct SpellSummary {
 
 #[derive(Serialize,Deserialize)]
 pub struct Spell {
+    links: HashMap<&str, Link>,
+
     id: Uuid,
     components: Vec<SpellComponent>,
     name: String,
     level: u32,
     school: MagicSchool,
-    effects: Vec<effects::Effect>,
+    effects: Vec<effects::EffectSummary>,
 
     casting_time: u32,
     range: SpellRange,
@@ -38,6 +40,6 @@ pub struct Spell {
 #[derive(Serialize,Deserialize)]
 pub struct SpellComponent {
     component_type: ComponentType,
-    item: Option<item::Item>,
+    item: Option<item::ItemSummary>,
     item_amount: Option<u32>,
 }
