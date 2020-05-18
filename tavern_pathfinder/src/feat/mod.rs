@@ -1,19 +1,22 @@
 use serde::{Serialize,Deserialize};   
 use uuid::Uuid;
 
+use crate::Skill;
+use crate::Attribute;
+
 #[derive(Serialize,Deserialize)]
 pub struct Feat {
     feat_id: Uuid,
 
     short_description: String,
-    long_description: String,
+    long_description: Option<String>,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct SkillFeatUnit {
     skill_unit_id: Uuid,
 
-    req_skil: crate::Skill,
+    req_skill: Skill,
     ranks: u8,
 }
 
@@ -21,7 +24,7 @@ pub struct SkillFeatUnit {
 pub struct AttributeFeatUnit {
     attr_unit_id: Uuid,
 
-    req_attr: crate::Attribute,
+    req_attr: Attribute,
     score: u8
 }
 
