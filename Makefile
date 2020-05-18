@@ -5,7 +5,7 @@ export
 # Do not run tests on tavern_derive directly: panic=abort is not supported
 CARGO_TEST_FLAGS=-p tavern_server -p tavern_pathfinder
 CARGO_INCREMENTAL=0
-RUSTFLAGS=-Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off
+RUSTFLAGS=-Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Z macro-backtrace
 
 all: test test-db
 
