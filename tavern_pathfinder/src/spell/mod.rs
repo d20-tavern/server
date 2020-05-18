@@ -10,6 +10,14 @@ use crate::item;
 use crate::effects;
 
 #[derive(Serialize,Deserialize)]
+pub struct SpellSummary {
+    id: Uuid,
+    name: String,
+    level: u32,
+    school: MagicSchool
+}
+
+#[derive(Serialize,Deserialize)]
 pub struct Spell {
     id: Uuid,
     components: Vec<SpellComponent>,
@@ -31,5 +39,5 @@ pub struct Spell {
 pub struct SpellComponent {
     component_type: ComponentType,
     item: Option<item::Item>,
-    item_amount: u32,
+    item_amount: Option<u32>,
 }
