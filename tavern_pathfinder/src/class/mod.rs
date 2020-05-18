@@ -6,6 +6,8 @@ use crate::CasterType;
 
 #[derive(Serialize,Deserialize)]
 pub struct Class {
+    links: HashMap<&str, Link>,
+
     id: Uuid,
 
     subclasses: Vec<Subclass>,
@@ -27,6 +29,7 @@ pub struct Subclass {
 
     caster_type: CasterType,
     casting_attr: Attribute,
+    features: Vec<Feature>
 }
 
 #[derive(Serialize,Deserialize)]
