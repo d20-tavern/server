@@ -7,7 +7,16 @@ use crate::CharacterStat;
 use crate::CombatStat;
 
 #[derive(Serialize,Deserialize)]
+pub struct EffectSummary {
+    id: Uuid,
+    name: String,
+    description: String,
+}
+
+#[derive(Serialize,Deserialize)]
 pub struct Effect {
+    links: HashMap<&str, Link>,
+
     id: Uuid,
 
     short_description: String,
