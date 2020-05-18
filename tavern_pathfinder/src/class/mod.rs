@@ -8,7 +8,10 @@ use proficiencies;
 #[derive(Serialize,Deserialize)]
 pub struct Class {
     id: Uuid,
-    subclasses: Subclass[],
+
+    subclasses: Vec<Subclass>,
+    weapon_proficiencies: proficiencies::WeaponsNotProficient,
+    armor_proficiencies: proficiencies::ArmorNotProficient,
 
     name: String,
     hit_die: String,
