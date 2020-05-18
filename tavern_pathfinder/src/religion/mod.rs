@@ -10,6 +10,8 @@ pub struct DeitySummary {
 
 #[derive(Serialize,Deserialize)]
 pub struct Deity {
+    links: HashMap<&str, Link>,
+
     id: Uuid,
 
     name: String,
