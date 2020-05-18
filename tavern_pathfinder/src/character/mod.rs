@@ -28,7 +28,7 @@ pub struct Character {
     race: Race,
     deity: religion::Deity,
 
-    classes: Vec<class::Classes>,
+    classes: Vec<class::Class>,
     feats: Vec<feat::Feat>,
     spells: Vec<spell::Spell>,
     bags: Vec<item::Bag>,
@@ -62,7 +62,7 @@ pub struct Character {
 #[derive(Serialize,Deserialize)]
 pub struct Race {
     id: Uuid,
-    type: RaceType,
+    main_type: RaceType,
     subtype: RaceSubtype,
 
     name: String,
@@ -74,7 +74,6 @@ pub struct Race {
 #[derive(Serialize,Deserialize)]
 pub struct RaceType {
     id: Uuid,
-    parent_race: Race,
 
     name: String,
     hit_die: String,
