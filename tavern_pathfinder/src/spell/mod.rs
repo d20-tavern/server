@@ -7,6 +7,7 @@ use crate::SaveThrow;
 use crate::ComponentType;
 
 use crate::item;
+use crate::effects;
 
 #[derive(Serialize,Deserialize)]
 pub struct Spell {
@@ -15,6 +16,7 @@ pub struct Spell {
     name: String,
     level: u32,
     school: MagicSchool,
+    effects: Vec<effects::Effect>,
 
     casting_time: u32,
     range: SpellRange,
