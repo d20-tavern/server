@@ -35,5 +35,3 @@ pub struct Feature {
     id: Uuid,
     description: String,
 }
-
-pub mod proficiencies;
