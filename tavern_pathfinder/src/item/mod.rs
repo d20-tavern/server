@@ -20,7 +20,7 @@ pub struct ItemSummary {
 
 #[derive(Serialize,Deserialize)]
 pub struct Item<'a> {
-    links: HashMap<&'a str, Link>,
+    links: HashMap<&'b str, Link>,
     id: Uuid,
 
     name: String,
@@ -28,21 +28,21 @@ pub struct Item<'a> {
     cost: u32,
     weight: u32,
     equip_slot: Option<EquipmentSlot>,
-    consumed_effects: Option<Vec<effects::Effect>>,
+    consumed_effects: Option<Vec<effects::EffectSummary>>,
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Bag {
+pub struct Bag<'a> {
     id: Uuid,
     character: character::CharacterSummary,
-    contents: Vec<Item>,
+    contents: Vec<Item<'b>>,
 
     capacity: u32,
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Weapon {
-    item: Item,
+pub struct Weapon<'a> {
+    item: Item<'b>,
     material: Option<Material>,
 
     weapon_range: std::ops::Range<u32>,
@@ -53,8 +53,8 @@ pub struct Weapon {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Armor {
-    item: Item,
+pub struct Armor<'a> {
+    item: Item<'b>,
     material: Option<Material>,
 
     max_dex_bonus: u32,

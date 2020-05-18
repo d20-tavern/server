@@ -1,5 +1,7 @@
 use serde::{Serialize,Deserialize};   
 use uuid::Uuid;
+use std::collections::HashMap;
+use crate::Link;
 
 use crate::Skill;
 use crate::Attribute;
@@ -12,8 +14,8 @@ pub struct FeatSummary {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Feat {
-    links: HashMap<&str, Link>,
+pub struct Feat<'a> {
+    links: HashMap<&'b str, Link>,
 
     id: Uuid,
 
@@ -22,7 +24,7 @@ pub struct Feat {
 
     req_skills: Option<Vec<SkillFeatUnit>>,
     req_attr: Option<Vec<AttributeFeatUnit>>,
-    req_feats: Option<Vec<RequiredFeat>>,
+    req_feats: Option<Vec<RequiredFeat<'b>>>,
 }
 
 #[derive(Serialize,Deserialize)]
@@ -42,8 +44,8 @@ pub struct AttributeFeatUnit {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct RequiredFeat {
+pub struct RequiredFeat<'a> {
     id: Uuid,
 
-    required_feat: Feat,
+    required_feat: Feat<'b>,
 }

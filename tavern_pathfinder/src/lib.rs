@@ -231,6 +231,7 @@ pub enum DamageType {
 }
 
 //REST API link struct
+#[derive(Serialize,Deserialize)]
 pub struct Link {
     rel: String,
     url: String,

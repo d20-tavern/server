@@ -1,6 +1,7 @@
 use serde::{Serialize,Deserialize};
 use uuid::Uuid;
 use std::collections::HashMap;
+use crate::Link;
 
 //Additional modules
 use crate::religion;
@@ -25,7 +26,7 @@ pub struct CharacterSummary {
 
 #[derive(Serialize,Deserialize)]
 pub struct Character<'a> {
-    links: HashMap<&'a str, Link>,
+    links: HashMap<&'b str, Link>,
 
     id: Uuid,
     race: Race,
@@ -34,7 +35,7 @@ pub struct Character<'a> {
     classes: Vec<class::ClassSummary>,
     feats: Vec<feat::FeatSummary>,
     spells: Vec<spell::SpellSummary>,
-    bags: Vec<item::Bag>,
+    bags: Vec<item::Bag<'b>>,
     active_effects: Vec<effects::EffectSummary>,
 
     name: String,

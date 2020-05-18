@@ -1,5 +1,7 @@
 use serde::{Serialize,Deserialize};
 use uuid::Uuid;
+use std::collections::HashMap;
+use crate::Link;
 
 use crate::Attribute;
 use crate::CasterType;
@@ -13,12 +15,12 @@ pub struct ClassSummary {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Class {
-    links: HashMap<&str, Link>,
+pub struct Class<'a> {
+    links: HashMap<&'b str, Link>,
 
     id: Uuid,
 
-    subclasses: Vec<Subclass>,
+    subclasses: Vec<Subclass<'b>>,
     weapon_proficiencies: proficiencies::WeaponsNotProficient,
     armor_proficiencies: proficiencies::ArmorNotProficient,
 
@@ -31,9 +33,9 @@ pub struct Class {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Subclass {
+pub struct Subclass<'b> {
     id: Uuid,
-    parent_class: Class,
+    parent_class: Class<'b>,
 
     caster_type: CasterType,
     casting_attr: Attribute,

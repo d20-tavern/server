@@ -1,5 +1,7 @@
 use serde::{Serialize,Deserialize};	
 use uuid::Uuid;
+use std::collections::HashMap;
+use crate::Link;
 
 use crate::Attribute;
 use crate::Skill;
@@ -14,8 +16,8 @@ pub struct EffectSummary {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Effect {
-    links: HashMap<&str, Link>,
+pub struct Effect<'a> {
+    links: HashMap<&'b str, Link>,
 
     id: Uuid,
 
