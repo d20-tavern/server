@@ -1,5 +1,7 @@
 use serde::{Serialize,Deserialize};	
 use uuid::Uuid;
+use std::collections::HashMap;
+use crate::Link;
 
 #[derive(Serialize,Deserialize)]
 pub struct DeitySummary {
@@ -9,8 +11,8 @@ pub struct DeitySummary {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Deity {
-    links: HashMap<&str, Link>,
+pub struct Deity<'a> {
+    links: HashMap<&'a str, Link>,
 
     id: Uuid,
 

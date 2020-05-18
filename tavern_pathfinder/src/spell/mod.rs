@@ -1,5 +1,7 @@
 use serde::{Serialize,Deserialize}; 
 use uuid::Uuid;
+use std::collection::HashMap;
+use crate::Link;
 
 use crate::MagicSchool;
 use crate::SpellRange;
@@ -18,8 +20,8 @@ pub struct SpellSummary {
 }
 
 #[derive(Serialize,Deserialize)]
-pub struct Spell {
-    links: HashMap<&str, Link>,
+pub struct Spell<'a> {
+    links: HashMap<&'a str, Link>,
 
     id: Uuid,
     components: Vec<SpellComponent>,

@@ -5,6 +5,14 @@ use crate::Attribute;
 use crate::CasterType;
 
 #[derive(Serialize,Deserialize)]
+pub struct ClassSummary {
+    id: Uuid,
+    name: String,
+
+    subclasses: Vec<String>,
+}
+
+#[derive(Serialize,Deserialize)]
 pub struct Class {
     links: HashMap<&str, Link>,
 

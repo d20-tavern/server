@@ -1,6 +1,6 @@
 use serde::{Serialize,Deserialize};
 use uuid::Uuid;
-use std::collections:HashMap;
+use std::collections::HashMap;
 
 //Additional modules
 use crate::religion;
@@ -29,7 +29,7 @@ pub struct Character<'a> {
 
     id: Uuid,
     race: Race,
-    deity: religion::Deity,
+    deity: religion::DeitySummary,
 
     classes: Vec<class::ClassSummary>,
     feats: Vec<feat::FeatSummary>,
