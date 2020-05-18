@@ -8,44 +8,44 @@ use crate::Attribute;
 
 #[derive(Serialize,Deserialize)]
 pub struct FeatSummary {
-    id: Uuid,
-    name: String,
-    description: String,
+	id: Uuid,
+	name: String,
+	description: String,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Feat<'a> {
-    links: HashMap<&'b str, Link>,
+	links: HashMap<&'b str, Link>,
 
-    id: Uuid,
+	id: Uuid,
 
-    short_description: String,
-    long_description: Option<String>,
+	short_description: String,
+	long_description: Option<String>,
 
-    req_skills: Option<Vec<SkillFeatUnit>>,
-    req_attr: Option<Vec<AttributeFeatUnit>>,
-    req_feats: Option<Vec<RequiredFeat<'b>>>,
+	req_skills: Option<Vec<SkillFeatUnit>>,
+	req_attr: Option<Vec<AttributeFeatUnit>>,
+	req_feats: Option<Vec<RequiredFeat<'b>>>,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct SkillFeatUnit {
-    id: Uuid,
+	id: Uuid,
 
-    req_skill: Skill,
-    ranks: u8,
+	req_skill: Skill,
+	ranks: u8,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct AttributeFeatUnit {
-    id: Uuid,
+	id: Uuid,
 
-    req_attr: Attribute,
-    score: u8
+	req_attr: Attribute,
+	score: u8
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct RequiredFeat<'a> {
-    id: Uuid,
+	id: Uuid,
 
-    required_feat: Feat<'b>,
+	required_feat: Feat<'b>,
 }

@@ -13,65 +13,65 @@ use crate::character;
 
 #[derive(Serialize,Deserialize)]
 pub struct ItemSummary {
-    id: Uuid,
-    name: String,
-    description: String,
+	id: Uuid,
+	name: String,
+	description: String,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Item<'a> {
-    links: HashMap<&'b str, Link>,
-    id: Uuid,
+	links: HashMap<&'b str, Link>,
+	id: Uuid,
 
-    name: String,
-    description: String,
-    cost: u32,
-    weight: u32,
-    equip_slot: Option<EquipmentSlot>,
-    consumed_effects: Option<Vec<effects::EffectSummary>>,
+	name: String,
+	description: String,
+	cost: u32,
+	weight: u32,
+	equip_slot: Option<EquipmentSlot>,
+	consumed_effects: Option<Vec<effects::EffectSummary>>,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Bag<'a> {
-    id: Uuid,
-    character: character::CharacterSummary,
-    contents: Vec<Item<'b>>,
+	id: Uuid,
+	character: character::CharacterSummary,
+	contents: Vec<Item<'b>>,
 
-    capacity: u32,
+	capacity: u32,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Weapon<'a> {
-    item: Item<'b>,
-    material: Option<Material>,
+	item: Item<'b>,
+	material: Option<Material>,
 
-    weapon_range: std::ops::Range<u32>,
-    crit_range: std::ops::Range<u32>,
-    damage: Vec<String>,
-    damage_type: Vec<DamageType>,
-    weapon_type: WeaponClass,
+	weapon_range: std::ops::Range<u32>,
+	crit_range: std::ops::Range<u32>,
+	damage: Vec<String>,
+	damage_type: Vec<DamageType>,
+	weapon_type: WeaponClass,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Armor<'a> {
-    item: Item<'b>,
-    material: Option<Material>,
+	item: Item<'b>,
+	material: Option<Material>,
 
-    max_dex_bonus: u32,
-    ac: u32,
-    spell_failure: u32,
-    check_penalty: u32,
-    armor_type: ArmorClass,
+	max_dex_bonus: u32,
+	ac: u32,
+	spell_failure: u32,
+	check_penalty: u32,
+	armor_type: ArmorClass,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Material {
-    id: Uuid,
+	id: Uuid,
 
-    name: String,
-    description: String,
+	name: String,
+	description: String,
 
-    hp_per_inch: Option<u32>,
-    hardness: Option<u32>,
-    
+	hp_per_inch: Option<u32>,
+	hardness: Option<u32>,
+	
 }

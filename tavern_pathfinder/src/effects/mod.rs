@@ -10,62 +10,62 @@ use crate::CombatStat;
 
 #[derive(Serialize,Deserialize)]
 pub struct EffectSummary {
-    id: Uuid,
-    name: String,
-    description: String,
+	id: Uuid,
+	name: String,
+	description: String,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Effect<'a> {
-    links: HashMap<&'b str, Link>,
+	links: HashMap<&'b str, Link>,
 
-    id: Uuid,
+	id: Uuid,
 
-    short_description: String,
-    long_description: String,
+	short_description: String,
+	long_description: String,
 
-    attr_effects: Vec<AttributeUnit>,
-    skill_effects: Vec<SkillUnit>,
-    char_effects: Vec<CharacterUnit>,
-    combat_effects: Vec<CombatUnit>,
-    misc_effects: Vec<MiscUnit>,
+	attr_effects: Vec<AttributeUnit>,
+	skill_effects: Vec<SkillUnit>,
+	char_effects: Vec<CharacterUnit>,
+	combat_effects: Vec<CombatUnit>,
+	misc_effects: Vec<MiscUnit>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AttributeUnit {
-    id: Uuid,
+	id: Uuid,
 
-    base_attr: Attribute,
-    modifier: i32,
+	base_attr: Attribute,
+	modifier: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct SkillUnit {
-    id: Uuid,
+	id: Uuid,
 
-    skill: Skill,
-    modifier: i32,
+	skill: Skill,
+	modifier: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CharacterUnit {
-    id: Uuid,
+	id: Uuid,
 
-    character_stat: CharacterStat,
-    modifier: i32
+	character_stat: CharacterStat,
+	modifier: i32
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CombatUnit {
-    id: Uuid,
+	id: Uuid,
 
-    combat_stat: CombatStat,
-    modifier: i32,
+	combat_stat: CombatStat,
+	modifier: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct MiscUnit {
-    id: Uuid,
+	id: Uuid,
 
-    description: String,
+	description: String,
 }
