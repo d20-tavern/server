@@ -2,21 +2,29 @@ use serde::{Serialize,Deserialize};
 use crate::character;
 use uuid::Uuid;
 
+use crate::EquipmentSlot;
+use crate::DamageType;
+use crate::WeaponClass;
+use crate::ArmorClass;
+
+use crate::effects;
+
 #[derive(Serialize,Deserialize)]
 pub struct Item {
-    item_id: Uuid,
+    id: Uuid,
 
     name: String,
     description: String,
     cost: u32,
     weight: u32,
-    equip_slot: crate::EquipmentSlot,
+    equip_slot: Option<EquipmentSlot>,
+    consumed_effects: Option<Vec<effects::Effect>>,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Bag {
-    bag_id: Uuid,
-    character: character::Character,
+    id: Uuid,
+    character: character::CharacterSummary,
     item: Item,
 
     capacity: u32,
@@ -30,8 +38,8 @@ pub struct Weapon {
     weapon_range: std::ops::Range<u32>,
     crit_range: std::ops::Range<u32>,
     damage: Vec<String>,
-    damage_type: Vec<crate::DamageType>,
-    weapon_type: crate::WeaponClass,
+    damage_type: Vec<DamageType>,
+    weapon_type: WeaponClass,
 }
 
 #[derive(Serialize,Deserialize)]
@@ -43,17 +51,17 @@ pub struct Armor {
     ac: u32,
     spell_failure: u32,
     check_penalty: u32,
-    armor_type: crate::ArmorClass,
+    armor_type: ArmorClass,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Material {
-    material: Uuid,
+    id: Uuid,
 
     name: String,
     description: String,
 
-    hp_per_inch: u32,
-    hardness: u32,
+    hp_per_inch: Option<u32>,
+    hardness: Option<u32>,
     
 }
