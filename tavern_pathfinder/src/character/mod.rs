@@ -1,6 +1,19 @@
 use serde::{Serialize,Deserialize};
 use uuid::Uuid;
 
+//Additional modules
+use crate::religion;
+use crate::class;
+use crate::feat;
+use crate::spell;
+use crate::item;
+use crate::effects;
+
+//Enums
+use crate::Gender;
+use crate::Alignment;
+use crate::Size;
+
 #[derive(Serialize,Deserialize)]
 pub struct CharacterSummary {
     char_id: Uuid,
@@ -11,18 +24,24 @@ pub struct CharacterSummary {
 
 #[derive(Serialize,Deserialize)]
 pub struct Character {
-    char_id: Uuid,
+    id: Uuid,
     race: Race,
-    deity: crate::religion::Deity,
+    deity: religion::Deity,
+
+    classes: class::Classes[],
+    feats: feat::Feat[],
+    spells: spell::Spell[],
+    bags: item::Bag[],
+    active_effects: effects::Effect[],
 
     name: String,
     age: u32,
-    gender: crate::Gender,
-    alignment: crate::Alignment,
+    gender: Gender,
+    alignment: Alignment,
     backstory: String,
     height: u32,
     weight: u32,
-    size: crate::Size,
+    size: Size,
 
     strength: u32,
     dexterity: u32,
@@ -42,19 +61,20 @@ pub struct Character {
 
 #[derive(Serialize,Deserialize)]
 pub struct Race {
-    race_id: Uuid,
-    type_id: RaceType,
-    subtype_id: RaceSubtype,
+    id: Uuid,
+    type: RaceType,
+    subtype: RaceSubtype,
 
     name: String,
     move_speed: u32,
-    size: crate::Size,
+    size: Size,
     languages: Vec<String>,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct RaceType {
-    type_id: Uuid,
+    id: Uuid,
+    parent_race: Race,
 
     name: String,
     hit_die: String,
@@ -63,6 +83,8 @@ pub struct RaceType {
 
 #[derive(Serialize,Deserialize)]
 pub struct RaceSubtype {
-    subtype_id: Uuid,
+    id: Uuid,
+    parent_type: RaceType,
+
     name: String,
 }
