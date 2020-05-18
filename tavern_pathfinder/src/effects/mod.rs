@@ -1,49 +1,60 @@
 use serde::{Serialize,Deserialize};	
 use uuid::Uuid;
 
+use crate::Attribute;
+use crate::Skill;
+use crate::CharacterStat;
+use crate::CombatStat;
+
 #[derive(Serialize,Deserialize)]
 pub struct Effect {
-    effect_id: Uuid,
+    id: Uuid,
 
     short_description: String,
     long_description: String,
+
+    attr_effects: Vec<AttributeUnit>,
+    skill_effects: Vec<SkillUnit>,
+    char_effects: Vec<CharacterUnit>,
+    combat_effects: Vec<CombatUnit>,
+    misc_effects: Vec<MiscUnit>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AttributeUnit {
-    attr_unit_id: Uuid,
+    id: Uuid,
 
-    base_attr: crate::Attribute,
+    base_attr: Attribute,
     modifier: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct SkillUnit {
-    skill_unit_id: Uuid,
+    id: Uuid,
 
-    skill: crate::Skill,
+    skill: Skill,
     modifier: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CharacterUnit {
-    char_unit_id: Uuid,
+    id: Uuid,
 
-    character_stat: crate::CharacterStat,
+    character_stat: CharacterStat,
     modifier: i32
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CombatUnit {
-    combat_unit_id: Uuid,
+    id: Uuid,
 
-    combat_stat: crate::CombatStat,
+    combat_stat: CombatStat,
     modifier: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct MiscUnit {
-    misc_unit_id: Uuid,
+    id: Uuid,
 
     description: String,
 }
