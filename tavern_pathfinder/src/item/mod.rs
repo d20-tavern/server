@@ -40,7 +40,7 @@ pub struct Bag {
 #[derive(Serialize,Deserialize)]
 pub struct Weapon {
     item: Item,
-    material: Material,
+    material: Option<Material>,
 
     weapon_range: std::ops::Range<u32>,
     crit_range: std::ops::Range<u32>,
@@ -52,7 +52,7 @@ pub struct Weapon {
 #[derive(Serialize,Deserialize)]
 pub struct Armor {
     item: Item,
-    material: Material,
+    material: Option<Material>,
 
     max_dex_bonus: u32,
     ac: u32,
