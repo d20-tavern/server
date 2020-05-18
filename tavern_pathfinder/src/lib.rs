@@ -233,7 +233,7 @@ pub enum DamageType {
 //REST API link struct
 pub struct Link {
     rel: String,
-    url: String/Url,
+    url: String,
 }
 
 pub mod character;
