@@ -28,11 +28,11 @@ pub struct Character {
     race: Race,
     deity: religion::Deity,
 
-    classes: class::Classes[],
-    feats: feat::Feat[],
-    spells: spell::Spell[],
-    bags: item::Bag[],
-    active_effects: effects::Effect[],
+    classes: Vec<class::Classes>,
+    feats: Vec<feat::Feat>,
+    spells: Vec<spell::Spell>,
+    bags: Vec<item::Bag>,
+    active_effects: Vec<effects::Effect>,
 
     name: String,
     age: u32,
