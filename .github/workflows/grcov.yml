@@ -34,7 +34,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all
+          args: -p tavern_server -p tavern_pathfinder
         env:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
@@ -44,7 +44,7 @@ jobs:
         if: runner.os == 'Linux'
         with:
           command: test
-          args: --all --manifest-path tavern_server/Cargo.toml --features test-db
+          args: --all-features -p tavern_server -p tavern_pathfinder
         env:
           TAVERN_DB_HOST: 127.0.0.1
           TAVERN_DB_PORT: 5432
