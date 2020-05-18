@@ -27,10 +27,11 @@ pub fn db_test(_args: TokenStream, item: TokenStream) -> TokenStream {
         #[cfg(feature = "db-test")]
         #(#attrs)*
         #asyncness #vis fn #name() #ret {
+            use sqlx::Connection;
             let conn = tavern_server::db::get_connection().await
                 .expect("database reset failed");
             let mut tx = conn.begin().await
-                .map_err(|err| Error::Transaction(err))
+                .map_err(|err| tavern_server::db::Error::Transaction(err))
                 .expect("database reset failed");
             sqlx::query(r"
                 SELECT 'TRUNCATE ' || input_table_name || ' CASCADE;' AS truncate_query
@@ -41,10 +42,10 @@ pub fn db_test(_args: TokenStream, item: TokenStream) -> TokenStream {
                 ")
                 .execute(&mut tx)
                 .await
-                .map_err(|err| Error::RunQuery(err))
+                .map_err(|err| tavern_server::db::Error::RunQuery(err))
                 .expect("database reset failed");
             tx.commit().await
-                .map_err(|err| Error::Transaction(err))
+                .map_err(|err| tavern_server::db::Error::Transaction(err))
                 .expect("database reset failed");
 
             tavern_server::db::init()
