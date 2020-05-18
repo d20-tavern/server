@@ -3,26 +3,28 @@ use uuid::Uuid;
 
 #[derive(Serialize,Deserialize)]
 pub struct Deity {
-    deity_id: Uuid,
+    id: Uuid,
 
     name: String,
     description: String,
     favored_animals: Vec<String>,
+
+    domains: Vec<Domain>,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Domain {
-    domain_id: Uuid,
+    id: Uuid,
 
     name: String,
     description: String,
     power_description: String,
+
+    subdomains: Vec<Subdomain>,
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct Subdomain {
-    domain_id: Uuid,
-
     name: String,
     description: String,
 }

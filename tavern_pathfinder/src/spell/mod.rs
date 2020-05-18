@@ -2,7 +2,7 @@ use serde::{Serialize,Deserialize};
 use uuid::Uuid;
 
 use crate::MagicSchool;
-use crate::Spellrange;
+use crate::SpellRange;
 use crate::SaveThrow;
 use crate::ComponentType;
 
