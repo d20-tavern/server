@@ -10,6 +10,13 @@ use crate::ArmorClass;
 use crate::effects;
 
 #[derive(Serialize,Deserialize)]
+pub struct ItemSummary {
+    id: Uuid,
+    name: String,
+    description: String,
+}
+
+#[derive(Serialize,Deserialize)]
 pub struct Item {
     id: Uuid,
 
@@ -25,7 +32,7 @@ pub struct Item {
 pub struct Bag {
     id: Uuid,
     character: character::CharacterSummary,
-    item: Item,
+    contents: Vec<Item>,
 
     capacity: u32,
 }
