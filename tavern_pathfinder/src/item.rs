@@ -10,6 +10,7 @@ use crate::EquipmentSlot;
 use crate::character::Character;
 use crate::effects::Effect;
 use crate::summary::{Summarize, Summary};
+use tavern_derive::Display;
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Item {
@@ -55,7 +56,7 @@ pub struct Bag {
     capacity: u32,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord)]
 pub enum WeaponClass {
     Axes,
     HeavyBlades,
@@ -76,14 +77,12 @@ pub enum WeaponClass {
     Tribal,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord)]
 pub enum ArmorClass {
     Light,
     Medium,
     Heavy,
 }
-
-// TODO: Impl Summarize for Weapon and Armor
 
 #[derive(Serialize, Deserialize)]
 pub struct Weapon {
@@ -97,6 +96,24 @@ pub struct Weapon {
     weapon_type: WeaponClass,
 }
 
+impl Summarize<Weapon> for Weapon {
+    fn id(&self) -> &Uuid {
+        &self.item.id
+    }
+
+    fn name(&self) -> &str {
+        &self.item.name
+    }
+
+    fn description(&self) -> &str {
+        &self.item.description
+    }
+
+    fn links(&self) -> &Links {
+        &self.item.links
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Armor {
     #[serde(flatten)]
@@ -107,6 +124,24 @@ pub struct Armor {
     spell_failure: u32,
     check_penalty: u32,
     armor_type: ArmorClass,
+}
+
+impl Summarize<Armor> for Armor {
+    fn id(&self) -> &Uuid {
+        &self.item.id
+    }
+
+    fn name(&self) -> &str {
+        &self.item.name
+    }
+
+    fn description(&self) -> &str {
+        &self.item.description
+    }
+
+    fn links(&self) -> &Links {
+        &self.item.links
+    }
 }
 
 #[derive(Serialize, Deserialize, Summarize)]
