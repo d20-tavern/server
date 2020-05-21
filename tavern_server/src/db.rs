@@ -28,7 +28,10 @@ mod tests {
 
         let conn_string = ps_opt.to_string();
 
-        assert_eq!(conn_string.as_str(), "postgresql://foo:bar@host.example.com:5432/test");
+        assert_eq!(
+            conn_string.as_str(),
+            "postgresql://foo:bar@host.example.com:5432/test"
+        );
         //assert!(conn_string.contains("host=host.example.com"));
         //assert!(conn_string.contains("port=5432"));
         //assert!(conn_string.contains("dbname=test"));
@@ -64,8 +67,9 @@ pub async fn init() -> Result<(), Error> {
     let mut conn: Connection = get_connection().await?;
     let sql = std::str::from_utf8(include_bytes!("db_tables.sql"))
         .map_err(|err| Error::LoadQuery(err))?;
-    conn.execute(sql).await
-            .map_err(|err| Error::RunQuery(err))?;
+    conn.execute(sql)
+        .await
+        .map_err(|err| Error::RunQuery(err))?;
     Ok(())
 }
 
@@ -141,7 +145,11 @@ impl fmt::Display for PostgreSQLOpt {
 }
 
 pub async fn get_connection() -> Result<Connection, Error> {
-    (*POOL).read().await.acquire().await
+    (*POOL)
+        .read()
+        .await
+        .acquire()
+        .await
         .map_err(|err| Error::Connection(err))
 }
 

@@ -23,4 +23,5 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 serde = {version = "1.0.106", features = ["derive"]}
+tavern_derive = {version = "0.1", path = "../tavern_derive"}
 uuid = {version = "0.8", features = ["serde"]}

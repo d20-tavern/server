@@ -3,21 +3,21 @@ use crate::status::{Error, Success};
 use crate::{config, db, status};
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use bytes::Bytes;
+use http::HeaderValue;
 use nebula_form::Form;
 use nebula_status::{Status, StatusCode};
 use rand::RngCore;
 use serde::Serialize;
+use sqlx::postgres::PgRow;
 use sqlx::types::Uuid;
 use sqlx::Error as SQLError;
 use sqlx::{Connection, PgConnection};
-use sqlx::postgres::PgRow;
 use sqlx::{Cursor, FromRow, Row};
 use std::convert::TryFrom;
 use structopt::StructOpt;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
 use warp::{Filter, Reply};
-use http::HeaderValue;
 
 /// The length of an Argon2i hash, in bytes.
 pub const ARGON2_HASH_LENGTH: u32 = 32;
@@ -27,8 +27,8 @@ pub const ARGON2_SALT_LENGTH: usize = 32;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nebula_form::{Field, Form};
     use futures::executor::block_on;
+    use nebula_form::{Field, Form};
 
     const TEST_MEMORY: u32 = 1024u32;
     const TEST_TIME_COST: u32 = 10u32;
@@ -97,7 +97,7 @@ mod tests {
         let conf = argon2::Config::default();
 
         let expected = argon2::hash_raw(pass, salt, &conf).unwrap();
-        
+
         let hash = block_on(hash_password(pass, salt, &conf)).unwrap();
 
         // Note: for actual application uses, argon2::verify_raw should be used instead
@@ -196,14 +196,16 @@ mod tests {
 
         let expected_hash = argon2::hash_raw(pass.as_bytes(), salt.as_slice(), &conf).unwrap();
 
-        let (user, auth) = registration_to_user_auth(info, salt.clone(), conf.clone()).await.unwrap();
+        let (user, auth) = registration_to_user_auth(info, salt.clone(), conf.clone())
+            .await
+            .unwrap();
 
         assert_eq!(exp_user, user);
         assert_eq!(expected_hash, auth.hash);
         assert_eq!(salt, auth.salt.as_slice());
         assert_eq!(conf, auth.config);
     }
-    
+
     #[tokio::test]
     async fn get_credentials_from_header() {
         let username = "justsomeone";
@@ -253,7 +255,11 @@ impl<'c> FromRow<'c, PgRow<'c>> for Argon2Opt {
         let time_cost: u32 = row.try_get("time_cost")?;
         let threads: u32 = row.try_get("threads")?;
 
-        Ok(Argon2Opt{ memory, time_cost, threads })
+        Ok(Argon2Opt {
+            memory,
+            time_cost,
+            threads,
+        })
     }
 }
 
@@ -301,8 +307,7 @@ impl PartialEq for User {
         if self.id.is_some() && other.id.is_some() {
             self.id.unwrap() == other.id.unwrap()
         } else {
-            self.username == other.username ||
-            self.email    == other.email
+            self.username == other.username || self.email == other.email
         }
     }
 }
@@ -324,19 +329,14 @@ impl TryFrom<Form> for User {
                     .ok_or_else(|| forms::field_is_file_error(FIELD_IS_ADMIN))?
             })
             .unwrap_or(Ok(false))?;
-        let mut id = form
-            .get(FIELD_USER_ID)
-            .map(|field| {
-                field
-                    .as_text()
-                    .map(|val| {
-                        Uuid::parse_str(val)
-                            .map_err(|err| {
-                                forms::field_is_invalid_error(FIELD_USER_ID)
-                            })
-                    })
-                    .ok_or_else(|| forms::field_is_file_error(FIELD_USER_ID))?
-            });
+        let mut id = form.get(FIELD_USER_ID).map(|field| {
+            field
+                .as_text()
+                .map(|val| {
+                    Uuid::parse_str(val).map_err(|err| forms::field_is_invalid_error(FIELD_USER_ID))
+                })
+                .ok_or_else(|| forms::field_is_file_error(FIELD_USER_ID))?
+        });
 
         // Not sure how else to extract the Result from an Option
         let id = match id {
@@ -360,7 +360,12 @@ impl<'c> FromRow<'c, PgRow<'c>> for User {
         let email: String = row.try_get("email")?;
         let is_admin: bool = row.try_get("is_admin")?;
 
-        Ok(User{ id: Some(id), username, email, is_admin })
+        Ok(User {
+            id: Some(id),
+            username,
+            email,
+            is_admin,
+        })
     }
 }
 
@@ -438,12 +443,11 @@ fn generate_salt() -> BoxedFilter<(Vec<u8>,)> {
 fn get_registration_info() -> BoxedFilter<(RegistrationInfo,)> {
     warp::filters::method::post()
         .and(nebula_form::form_filter())
-        .and_then(|form: Form| async move { 
-            RegistrationInfo::try_from(form)
-                .map(|mut info| {
-                    info.user.id = None;
-                    info
-                })
+        .and_then(|form: Form| async move {
+            RegistrationInfo::try_from(form).map(|mut info| {
+                info.user.id = None;
+                info
+            })
         })
         .boxed()
 }
@@ -558,38 +562,43 @@ pub(crate) fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
 /// for this resource.
 fn reject_login_required() -> Rejection {
     let mut status = Status::new(&StatusCode::UNAUTHORIZED);
-    status.headers_mut().insert(http::header::WWW_AUTHENTICATE, HeaderValue::from_static("Basic"));
+    status.headers_mut().insert(
+        http::header::WWW_AUTHENTICATE,
+        HeaderValue::from_static("Basic"),
+    );
     status.into()
 }
 
 /// Parse the Authorization header for user credentials
-fn credentials_from_header() -> BoxedFilter<(String, String,)> {
+fn credentials_from_header() -> BoxedFilter<(String, String)> {
     let auth_header: &'static str = http::header::AUTHORIZATION.as_ref();
     warp::filters::header::header::<String>(auth_header)
         .and_then(move |val: String| async move {
-            let params = val.split_whitespace()
-                .collect::<Vec<&str>>();
+            let params = val.split_whitespace().collect::<Vec<&str>>();
 
-            let method = params.get(0)
+            let method = params
+                .get(0)
                 .ok_or_else(|| status::invalid_header_error(auth_header))?;
 
             if !method.eq_ignore_ascii_case("basic") {
                 return Err(status::invalid_header_error(auth_header));
             }
 
-            let encoded = params.get(1)
+            let encoded = params
+                .get(1)
                 .ok_or_else(|| status::invalid_header_error(auth_header))?;
 
-            let decoded = base64::decode(encoded)
-                .map_err(|_| status::invalid_header_error(auth_header))?;
-            
+            let decoded =
+                base64::decode(encoded).map_err(|_| status::invalid_header_error(auth_header))?;
+
             let decoded = std::str::from_utf8(decoded.as_slice())
                 .map_err(|_| status::invalid_header_error(auth_header))?;
 
-            let colon = decoded.find(':')
+            let colon = decoded
+                .find(':')
                 .ok_or_else(|| status::invalid_header_error(auth_header))?;
             let (username, password) = decoded.split_at(colon);
-            Ok((username.to_string(), password[1..].to_string()))            
+            Ok((username.to_string(), password[1..].to_string()))
         })
         .untuple_one()
         .boxed()
@@ -597,27 +606,34 @@ fn credentials_from_header() -> BoxedFilter<(String, String,)> {
 
 /// Given the user credentials and a database connection, authenticate and,
 /// if authenticated, create a User struct and return it.
-async fn user_from_credentials(user: String, pass: String, conn: db::Connection) -> Result<User, Rejection> {
+async fn user_from_credentials(
+    user: String,
+    pass: String,
+    conn: db::Connection,
+) -> Result<User, Rejection> {
     let mut tx = conn
         .begin()
         .await
         .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
 
-    let query = sqlx::query(r"SELECT * FROM Users WHERE username = $1")
-        .bind(&user);
+    let query = sqlx::query(r"SELECT * FROM Users WHERE username = $1").bind(&user);
 
     let mut rows = query.fetch(&mut tx);
 
-    let row = rows.next().await
+    let row = rows
+        .next()
+        .await
         .map_err(|err| status::server_error_into_rejection(err.to_string()))?
         .ok_or_else(|| reject_login_required())?;
 
-    let user = User::from_row(&row)
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+    let user =
+        User::from_row(&row).map_err(|err| status::server_error_into_rejection(err.to_string()))?;
     let auth = UserAuth::from_row(&row)
         .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
 
-    tx.commit().await.map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+    tx.commit()
+        .await
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
 
     if auth.is_valid(&pass)? {
         Ok(user)

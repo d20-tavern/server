@@ -1,246 +1,195 @@
-extern crate serde;
-extern crate uuid;
+use serde::{Deserialize, Serialize};
+use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
+use std::collections::BTreeMap;
+use std::hash::Hash;
+use tavern_derive::Display;
 
 #[cfg(test)]
 mod tests {
-	#[test]
-	fn it_works() {
-		assert_eq!(2 + 2, 4);
-	}
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
 }
 
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Display)]
 pub enum Gender {
-	Male,
-	Female,
-	Other,
+    Male,
+    Female,
+    Other,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Display)]
 pub enum Size {
-	Fine,
-	Diminutive,
-	Tiny,
-	Small,
-	Medium,
-	Large,
-	Huge,
-	Gargantuan,
-	Colossal,
+    Fine,
+    Diminutive,
+    Tiny,
+    Small,
+    Medium,
+    Large,
+    Huge,
+    Gargantuan,
+    Colossal,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Display)]
 pub enum Alignment {
-	LawfulGood,
-	LawfulNeutral,
-	LawfulEvil,
-	TrueNeutral,
-	NeutralEvil,
-	ChaoticGood,
-	ChaoticNeutral,
-	ChaoticEvil,
+    LawfulGood,
+    LawfulNeutral,
+    LawfulEvil,
+    TrueNeutral,
+    NeutralEvil,
+    ChaoticGood,
+    ChaoticNeutral,
+    ChaoticEvil,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum Attribute {
-	Strength,
-	Dexterity,
-	Constitution,
-	Intelligence,
-	Wisdom,
-	Charisma,
+    Strength,
+    Dexterity,
+    Constitution,
+    Intelligence,
+    Wisdom,
+    Charisma,
 }
 
-#[derive(Serialize,Deserialize)]
+pub type Attributes = BTreeMap<Attribute, i8>;
+
+#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum Skill {
-	Acrobatics, 
-	Appraise, 
-	Bluff, 
-	Climb, 
-	Craft, 
-	Diplomacy, 
-	DisableDevice, 
-	Disguise, 
-	EscapeArtist, 
-	Fly, 
-	HandleAnimal, 
-	Heal, 
-	Intimidate, 
-	KnowledgeArcana, 
-	KnowledgeDungeoneering, 
-	KnowledgeEngineering, 
-	KnowledgeGeography, 
-	KnowledgeHistory, 
-	KnowledgeLocal, 
-	KnowledgeNobility, 
-	KnowledgePlanes, 
-	KnowledgeReligion, 
-	Linguistics, 
-	Perception, 
-	Perform, 
-	Profession, 
-	Ride, 
-	SenseMotive, 
-	SleightOfHand, 
-	Spellcraft,
-	Stealth,
-	Survival,
-	Swim,
-	UseMagicDevice,
+    Acrobatics,
+    Appraise,
+    Bluff,
+    Climb,
+    Craft,
+    Diplomacy,
+    DisableDevice,
+    Disguise,
+    EscapeArtist,
+    Fly,
+    HandleAnimal,
+    Heal,
+    Intimidate,
+    KnowledgeArcana,
+    KnowledgeDungeoneering,
+    KnowledgeEngineering,
+    KnowledgeGeography,
+    KnowledgeHistory,
+    KnowledgeLocal,
+    KnowledgeNobility,
+    KnowledgePlanes,
+    KnowledgeReligion,
+    Linguistics,
+    Perception,
+    Perform,
+    Profession,
+    Ride,
+    SenseMotive,
+    SleightOfHand,
+    Spellcraft,
+    Stealth,
+    Survival,
+    Swim,
+    UseMagicDevice,
 }
 
-#[derive(Serialize,Deserialize)]
+pub type Skills = BTreeMap<Skill, i8>;
+
+#[derive(Serialize, Deserialize)]
 pub enum SaveThrow {
-	Fortitude,
-	Reflex,
-	Will,
-}	
+    Fortitude(i8),
+    Reflex(i8),
+    Will(i8),
+}
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum CharacterStat {
-	Name,
-	Race,
-	Size,
-	Height,
-	Weight,
-	Age,
-	Gender,
-	Alignment,
-	Deity,
-	Languages,
-	Appearance,
+    Name,
+    Race,
+    Size,
+    Height,
+    Weight,
+    Age,
+    Gender,
+    Alignment,
+    Deity,
+    Languages,
+    Appearance,
 }
 
-#[derive(Serialize,Deserialize)]
+pub type CharacterStats = BTreeMap<CharacterStat, i8>;
+
+#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum CombatStat {
-	MeleeAttackBonus,
-	RangedAttackBonus,
-	CMB,
-	CMD,
-	ArmorClass,
-	TouchAC,
-	FlatFootedAC,
-	InitiativeBonus,
-	DamageReduction,
-	SpellResistance,
-	Speed,
-	FortitudeSave,
-	ReflexSave,
-	WillSave,
+    MeleeAttackBonus,
+    RangedAttackBonus,
+    CMB,
+    CMD,
+    AC,
+    TouchAC,
+    FlatFootedAC,
+    InitiativeBonus,
+    DamageReduction,
+    SpellResistance,
+    Speed,
+    Fortitude,
+    Reflex,
+    Will,
 }
 
-#[derive(Serialize,Deserialize)]
-pub enum CasterType {
-	Spontaneous,
-	Prepared,
-}
+pub type CombatStats = BTreeMap<CombatStat, i8>;
 
-#[derive(Serialize,Deserialize)]
-pub enum ComponentType {
-	Somatic,
-	Material,
-	Verbal,
-}
-
-#[derive(Serialize,Deserialize)]
-pub enum MagicSchool {	
-	Abjuration, 
-	Conjuration, 
-	Divination, 
-	Enchantment, 
-	Evocation, 
-	Illusion, 
-	Necromancy, 
-	Transmutation,
-}
-
-#[derive(Serialize,Deserialize)]
-pub enum SpellRange {
-	Personal,
-	Touch,
-	Close,
-	Medium,
-	Long,
-	Unlimited,
-}
-
-#[derive(Serialize,Deserialize)]
-pub enum WeaponClass {
-	Axes, 
-	HeavyBlades, 
-	LightBlades, 
-	Bows, 
-	Close, 
-	Crossbows, 
-	Double, 
-	Firearms, 
-	Flails, 
-	Hammers, 
-	Monk, 
-	Natural, 
-	Polearms, 
-	SiegeEngines, 
-	Spears,
-	Thrown,
-	Tribal,
-}
-
-#[derive(Serialize,Deserialize)]
-pub enum ArmorClass {
-	Light,
-	Medium,
-	Heavy,
-}
-
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Display)]
 pub enum EquipmentSlot {
-	NoSlot,
-	Armor, 
-	Belts, 
-	Body, 
-	Chest, 
-	Eyes, 
-	Feet, 
-	Hands, 
-	Head, 
-	Headband, 
-	Neck, 
-	RingLeft, 
-	RingRight, 
-	Shield, 
-	Shoulders,
-	Wrist,
+    NoSlot,
+    Armor,
+    Belts,
+    Body,
+    Chest,
+    Eyes,
+    Feet,
+    Hands,
+    Head,
+    Headband,
+    Neck,
+    RingLeft,
+    RingRight,
+    Shield,
+    Shoulders,
+    Wrist,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Display)]
 pub enum DamageType {
-	Bludgeoning, 
-	Slashing, 
-	Piercing, 
-	Energy, 
-	Acid, 
-	Fire, 
-	Electricity, 
-	Cold, 
-	Sonic, 
-	Positive, 
-	Negative, 
-	Nonlethal,
+    Bludgeoning,
+    Slashing,
+    Piercing,
+    Energy,
+    Acid,
+    Fire,
+    Electricity,
+    Cold,
+    Sonic,
+    Positive,
+    Negative,
+    Nonlethal,
 }
 
 //REST API link struct
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Link {
-	rel: String,
-	url: String,
+    rel: String,
+    url: String,
 }
+
+pub type Links = BTreeMap<String, Link>;
 
 pub mod character;
 pub mod class;
-pub mod feat;
-pub mod spell;
-pub mod religion;
-pub mod item;
 pub mod effects;
+pub mod feat;
+pub mod item;
+pub mod religion;
+pub mod spell;
+pub mod summary;
