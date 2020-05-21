@@ -1,7 +1,3 @@
-#FROM rust as builder
-# Alpine uses a patched rust that can link musl dynamically
-# which is needed for procedural macros. The above line using the
-# official rust image can be enabled once rust 1.44 is released.
 FROM rust:slim as builder
 
 #RUN mkdir -p /usr/src
