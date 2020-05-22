@@ -5,7 +5,17 @@ export
 # Do not run tests on tavern_derive directly: panic=abort is not supported
 CARGO_TEST_FLAGS=-p tavern_server -p tavern_pathfinder
 CARGO_INCREMENTAL=0
-RUSTFLAGS=-Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Z macro-backtrace
+CARGO_VERBOSE=false
+
+ifeq (${CARGO_NIGHTLY}, test)
+	CARGO_VERBOSE_FLAG=--verbose
+	CARGO_COMMAND=rustup run nightly cargo
+	RUSTFLAGS=-Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Z macro-backtrace
+else
+	CARGO_COMMAND=rustup run stable cargo
+	CARGO_VERBOSE_FLAG=
+	RUSTFLAGS=
+endif
 
 all: test test-db
 
@@ -23,8 +33,8 @@ rustup-nightly: rustup
 	fi
 
 test: rustup-nightly
-	rustup run nightly cargo test ${CARGO_TEST_FLAGS}
+	${CARGO_COMMAND} test ${CARGO_TEST_FLAGS}
 
 test-db: rustup-nightly
 	export RUST_TEST_THREADS=1
-	rustup run nightly cargo test ${CARGO_TEST_FLAGS} --all-features
+	${CARGO_COMMAND} test ${CARGO_TEST_FLAGS} --all-features
