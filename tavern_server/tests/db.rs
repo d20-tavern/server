@@ -1,5 +1,5 @@
-use tavern_server::db::{self, Error};
 use sqlx::Connection as _;
+use tavern_server::db::{self, Error};
 
 #[tavern_derive::db_test]
 async fn init_database_succeeds() {
@@ -8,6 +8,5 @@ async fn init_database_succeeds() {
 
 #[tavern_derive::db_test]
 async fn double_database_init_succeeds() {
-    db::init().await
-        .expect("second database init failed");
+    db::init().await.expect("second database init failed");
 }
