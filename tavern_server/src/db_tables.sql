@@ -278,9 +278,9 @@ CREATE TABLE IF NOT EXISTS Users (
     is_admin    BOOLEAN DEFAULT false,
     pass_hash   BYTEA   NOT NULL,
     salt        BYTEA   NOT NULL,
-    time_cost   BIGINT  NOT NULL CHECK (time_cost > 0),
-    memory      BIGINT  NOT NULL CHECK (memory > 0),
-    threads     BIGINT  NOT NULL CHECK (threads > 0)
+    time_cost   INT     NOT NULL CHECK (time_cost > 0),
+    memory      INT     NOT NULL CHECK (memory > 0),
+    threads     INT     NOT NULL CHECK (threads > 0)
 );
 
 CREATE TABLE IF NOT EXISTS RaceTypes (
