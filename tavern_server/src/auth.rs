@@ -250,15 +250,17 @@ pub struct Argon2Opt {
 }
 
 impl<'c> FromRow<'c, PgRow<'c>> for Argon2Opt {
+    // The argon2 library we are using expects u32, but postgres
+    // only supports signed integers.
     fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
-        let memory: u32 = row.try_get("memory")?;
-        let time_cost: u32 = row.try_get("time_cost")?;
-        let threads: u32 = row.try_get("threads")?;
+        let memory: i32 = row.try_get("memory")?;
+        let time_cost: i32 = row.try_get("time_cost")?;
+        let threads: i32 = row.try_get("threads")?;
 
         Ok(Argon2Opt {
-            memory,
-            time_cost,
-            threads,
+            memory: memory as u32,
+            time_cost: time_cost as u32,
+            threads: threads as u32,
         })
     }
 }
@@ -276,6 +278,11 @@ impl From<Argon2Opt> for argon2::Config<'static> {
         config
     }
 }
+
+/// The name of the user email's UNIQUE column constraint
+const CONSTRAINT_USER_EMAIL_UNIQUE: &'static str = "user_email_unique";
+/// The name of the user email's UNIQUE column constraint
+const CONSTRAINT_USER_USERNAME_UNIQUE: &'static str = "user_username_unique";
 
 /// The expected form field name for the user ID.
 pub const FIELD_USER_ID: &'static str = "user-id";
@@ -492,8 +499,7 @@ async fn register_in_database(
     let query = sqlx::query(
         r"INSERT INTO Users
     (id, email, username, pass_hash, salt, time_cost, memory, threads)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    ON CONFLICT DO NOTHING",
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
     )
     .bind(&id)
     .bind(&user.email)
@@ -509,12 +515,12 @@ async fn register_in_database(
             SQLError::Database(dberr) => {
                 match dberr.code() {
                     Some(db::PG_ERROR_UNIQUE_VIOLATION) => {
-                        match dberr.column_name() {
+                        match dberr.constraint_name() {
                             None => status::server_error_into_rejection(dberr.to_string()),
                             Some(name) => match name {
                                 // Before updating this code with new columns, ensure that no
                                 // sensitive information will end up in the error message.
-                                "email" | "username" => Status::with_data(
+                                CONSTRAINT_USER_EMAIL_UNIQUE | CONSTRAINT_USER_USERNAME_UNIQUE => Status::with_data(
                                     &StatusCode::BAD_REQUEST,
                                     Error::new(format!("user with that {} already exists", name)),
                                 )

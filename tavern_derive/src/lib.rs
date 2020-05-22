@@ -36,13 +36,7 @@ pub fn db_test(_args: TokenStream, item: TokenStream) -> TokenStream {
             let mut tx = conn.begin().await
                 .map_err(|err| tavern_server::db::Error::Transaction(err))
                 .expect("database reset failed");
-            sqlx::query(r"
-                SELECT 'TRUNCATE ' || input_table_name || ' CASCADE;' AS truncate_query
-                FROM(SELECT table_schema || '.' || table_name AS input_table_name
-                FROM information_schema.tables WHERE table_schema
-                NOT IN ('pg_catalog', 'information_schema') AND table_schema NOT LIKE 'pg_toast%')
-                AS information;
-                ")
+            sqlx::query(r"DROP SCHEMA IF EXISTS tavern CASCADE")
                 .execute(&mut tx)
                 .await
                 .map_err(|err| tavern_server::db::Error::RunQuery(err))

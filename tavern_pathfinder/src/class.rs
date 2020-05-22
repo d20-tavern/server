@@ -28,8 +28,8 @@ pub struct Class {
     description: String,
     hit_die: String,
     starting_wealth: String,
-    bab_per_level: f32,
-    skills_per_level: i32,
+    bab_per_level: f64,
+    skills_per_level: i16,
     skills_attr: Attribute,
 }
 

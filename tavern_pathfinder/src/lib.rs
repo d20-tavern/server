@@ -94,13 +94,13 @@ pub enum Skill {
     UseMagicDevice,
 }
 
-pub type Skills = BTreeMap<Skill, i8>;
+pub type Skills = BTreeMap<Skill, i16>;
 
 #[derive(Serialize, Deserialize)]
 pub enum SaveThrow {
-    Fortitude(i8),
-    Reflex(i8),
-    Will(i8),
+    Fortitude(i16),
+    Reflex(i16),
+    Will(i16),
 }
 
 #[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
@@ -118,7 +118,7 @@ pub enum CharacterStat {
     Appearance,
 }
 
-pub type CharacterStats = BTreeMap<CharacterStat, i8>;
+pub type CharacterStats = BTreeMap<CharacterStat, i16>;
 
 #[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum CombatStat {
@@ -138,7 +138,7 @@ pub enum CombatStat {
     Will,
 }
 
-pub type CombatStats = BTreeMap<CombatStat, i8>;
+pub type CombatStats = BTreeMap<CombatStat, i16>;
 
 #[derive(Serialize, Deserialize, Display)]
 pub enum EquipmentSlot {

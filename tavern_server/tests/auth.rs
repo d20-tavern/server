@@ -79,21 +79,20 @@ async fn double_registration_fails() {
     let stat: Status<Error> = Status::recover(resp)
         .expect("Rejection should contain a Status");
 
+    eprintln!("{:?}", stat);
     assert_eq!(stat.code(), &StatusCode::BAD_REQUEST,
         "double registration should fail with 400 Bad Request");
 }
 
 #[tavern_derive::db_test]
 async fn login_no_such_user_fails() {
-    let form = get_login_form();
     let resp = login_request(TEST_USERNAME, TEST_PASSWORD)
         .await
         .expect_err("login without registration should fail");
 
-    let stat: Status<Error> = Status::recover(resp)
-        .expect("Rejection should contain a Status");
+    let stat: Status<Empty> = Status::recover(resp)
+        .expect("Rejection should contain a Status<Empty>");
 
-    eprintln!("{:?}", stat);
     assert_eq!(stat.code(), &StatusCode::UNAUTHORIZED);
     let val = stat.headers().get(header::WWW_AUTHENTICATE)
         .expect("WWW-Authenticate header must exist");
@@ -103,12 +102,40 @@ async fn login_no_such_user_fails() {
 
 #[tavern_derive::db_test]
 async fn login_wrong_credentials_fails() {
+    let form = get_registration_form();
 
+    let _ = registration_request(&form)
+        .await
+        .expect("single registration should succeed");
+
+    // Ensure the username and password are not the same for the test
+    assert_ne!(TEST_USERNAME, TEST_PASSWORD);
+    let resp = login_request(TEST_USERNAME, TEST_USERNAME)
+        .await
+        .expect_err("invalid login for valid user should fail");
+
+    let stat: Status<Empty> = Status::recover(resp)
+        .expect("Rejection should contain a Status<Empty>");
+
+    assert_eq!(stat.code(), &StatusCode::UNAUTHORIZED);
+    let val = stat.headers().get(header::WWW_AUTHENTICATE)
+        .expect("WWW-Authenticate header must exist");
 }
 
 #[tavern_derive::db_test]
 async fn valid_login_succeeds() {
+    let form = get_registration_form();
 
+    let _ = registration_request(&form)
+        .await
+        .expect("single registration should succeed");
+
+    // Ensure the username and password are not the same for the test
+    let resp: Status<Empty> = login_request(TEST_USERNAME, TEST_PASSWORD)
+        .await
+        .expect("valid login for valid user should succeed");
+
+    assert_eq!(resp.code(), &StatusCode::OK);
 }
 
 #[tavern_derive::db_test]
