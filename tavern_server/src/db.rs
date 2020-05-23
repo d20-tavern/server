@@ -3,7 +3,7 @@ use crate::status;
 use futures::executor::block_on;
 use lazy_static::lazy_static;
 use sqlx::pool::PoolConnection;
-use sqlx::{Connection as _, Executor, PgConnection, PgPool};
+use sqlx::{Executor, PgConnection, PgPool};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::sync::Arc;
@@ -66,19 +66,19 @@ impl fmt::Display for Error {
 pub async fn init() -> Result<(), Error> {
     let mut conn: Connection = get_connection().await?;
     let sql = std::str::from_utf8(include_bytes!("db_tables.sql"))
-        .map_err(|err| Error::LoadQuery(err))?;
+        .map_err(Error::LoadQuery)?;
     conn.execute(sql)
         .await
-        .map_err(|err| Error::RunQuery(err))?;
+        .map_err(Error::RunQuery)?;
     Ok(())
 }
 
 // Error codes come from https://www.postgresql.org/docs/10/errcodes-appendix.html
-pub const PG_ERROR_CHECK_VIOLATION: &'static str = "23514";
-pub const PG_ERROR_FOREIGN_KEY_VIOLATION: &'static str = "23503";
-pub const PG_ERROR_NOT_NULL_VIOLATION: &'static str = "23502";
-pub const PG_ERROR_RESTRICT_VIOLATION: &'static str = "23001";
-pub const PG_ERROR_UNIQUE_VIOLATION: &'static str = "23505";
+pub const PG_ERROR_CHECK_VIOLATION: &str = "23514";
+pub const PG_ERROR_FOREIGN_KEY_VIOLATION: &str = "23503";
+pub const PG_ERROR_NOT_NULL_VIOLATION: &str = "23502";
+pub const PG_ERROR_RESTRICT_VIOLATION: &str = "23001";
+pub const PG_ERROR_UNIQUE_VIOLATION: &str = "23505";
 
 pub type Connection = PoolConnection<PgConnection>;
 
@@ -150,7 +150,7 @@ pub async fn get_connection() -> Result<Connection, Error> {
         .await
         .acquire()
         .await
-        .map_err(|err| Error::Connection(err))
+        .map_err(Error::Connection)
 }
 
 async fn get_filter_connection() -> Result<Connection, Rejection> {

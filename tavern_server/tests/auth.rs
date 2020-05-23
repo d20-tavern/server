@@ -19,15 +19,6 @@ fn get_registration_form() -> Form {
     form
 }
 
-fn get_login_form() -> Form {
-    let mut form = Form::new();
-
-    form.insert(auth::FIELD_USERNAME, Field::Text(TEST_USERNAME.to_string()));
-    form.insert(auth::FIELD_PASSWORD, Field::Text(TEST_PASSWORD.to_string()));
-
-    form
-}
-
 async fn registration_request(form: &Form) -> Result<Status<Success<auth::User>>, Rejection> {
     warp::test::request()
         .path("/register")
@@ -118,7 +109,7 @@ async fn login_wrong_credentials_fails() {
         .expect("Rejection should contain a Status<Empty>");
 
     assert_eq!(stat.code(), &StatusCode::UNAUTHORIZED);
-    let val = stat.headers().get(header::WWW_AUTHENTICATE)
+    stat.headers().get(header::WWW_AUTHENTICATE)
         .expect("WWW-Authenticate header must exist");
 }
 

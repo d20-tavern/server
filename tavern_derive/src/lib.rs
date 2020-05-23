@@ -84,7 +84,7 @@ pub fn derive_summarize(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::DeriveInput);
 
     let name = &input.ident;
-    let mut fields;
+    let fields;
 
     match &input.data {
         Data::Struct(struc) => fields = &struc.fields,
@@ -97,17 +97,18 @@ pub fn derive_summarize(item: TokenStream) -> TokenStream {
     };
 
     let result = if let Fields::Named(named) = fields {
-        let id = field_from_iter(named.named.pairs(), "id").expect(&format!(
+        let id = field_from_iter(named.named.pairs(), "id")
+            .unwrap_or_else(|| panic!(
             "auto creation of Summary type for {} requires field 'id'",
             name
         ));
-        let fname = field_from_iter(named.named.pairs(), "name").expect(&format!(
+        let fname = field_from_iter(named.named.pairs(), "name").unwrap_or_else(|| panic!(
             "auto creation of Summary type for {} requires field 'name'",
             name
         ));
         let desc = field_from_iter(named.named.pairs(), "description")
-                    .expect(&format!("auto creation of Summary type for {} requires field 'short_description' or 'description'", name));
-        let links = field_from_iter(named.named.pairs(), "links").expect(&format!(
+                    .unwrap_or_else(|| panic!("auto creation of Summary type for {} requires field 'short_description' or 'description'", name));
+        let links = field_from_iter(named.named.pairs(), "links").unwrap_or_else(|| panic!(
             "auto creation of Summary type for {} requires field 'links'",
             name
         ));
@@ -170,8 +171,8 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
 
     let var = input.variants.pairs().zip(var_words)
         .map(|(v, s)| {
-            let v = v.value();
-            quote!{ #v => #s }
+            let v = &v.value().ident;
+            quote!{ #name::#v => #s }
         });
     
     let result = quote! {
