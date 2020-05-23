@@ -1,3 +1,6 @@
+CREATE SCHEMA IF NOT EXISTS tavern;
+SET search_path TO tavern;
+
 DO $$ BEGIN
     CREATE TYPE Gender AS ENUM (
         'Male', 
@@ -270,8 +273,8 @@ END $$;
 --user creds table - also used for hashing info
 CREATE TABLE IF NOT EXISTS Users (
     id          UUID    PRIMARY KEY,
-    email       TEXT    NOT NULL UNIQUE,
-    username    TEXT    NOT NULL UNIQUE,
+    email       TEXT    CONSTRAINT user_email_required    NOT NULL CONSTRAINT user_email_unique    UNIQUE,
+    username    TEXT    CONSTRAINT user_username_required NOT NULL CONSTRAINT user_username_unique UNIQUE,
     is_admin    BOOLEAN DEFAULT false,
     pass_hash   BYTEA   NOT NULL,
     salt        BYTEA   NOT NULL,
@@ -288,18 +291,20 @@ CREATE TABLE IF NOT EXISTS RaceTypes (
 );
 
 CREATE TABLE IF NOT EXISTS RaceSubtypes (
-    id      UUID    PRIMARY KEY,
-    name    TEXT    NOT NULL
+    id              UUID    PRIMARY KEY,
+    name            TEXT    NOT NULL,
+    description     TEXT    NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Races (
-    id          UUID    PRIMARY KEY,
-    type_id     UUID    REFERENCES RaceTypes(id) NOT NULL,
-    subtype_id  UUID    REFERENCES RaceSubtypes(id),
-    name        TEXT    NOT NULL,
-    move_speed  INT     NOT NULL CHECK (move_speed > 0),
-    size        Size    NOT NULL,
-    languages   TEXT[]
+    id              UUID        PRIMARY KEY,
+    description     TEXT        NOT NULL,
+    type_id         UUID        REFERENCES RaceTypes(id) NOT NULL,
+    subtype_id      UUID        REFERENCES RaceSubtypes(id),
+    name            TEXT        NOT NULL,
+    move_speed      SMALLINT    NOT NULL CHECK (move_speed > 0),
+    size            Size        NOT NULL,
+    languages       TEXT[]
 );
 
 --Deity tables
@@ -317,40 +322,41 @@ CREATE TABLE IF NOT EXISTS Characters (
     race_id         UUID        REFERENCES Races(id) NOT NULL,
     deity_id        UUID        REFERENCES Deities(id) NOT NULL,
     name            TEXT        NOT NULL,
-    age             INT         NOT NULL CHECK (age > 0),
+    age             SMALLINT    NOT NULL CHECK (age > 0),
     gender          Gender      NOT NULL,
     alignment       Alignment   NOT NULL,
     backstory       TEXT,
-    height          INT         CHECK (height > 0),
-    weight          INT         CHECK (weight > 0),
+    height          SMALLINT    CHECK (height > 0),
+    weight          SMALLINT    CHECK (weight > 0),
     size            Size        NOT NULL,
--- Attribute scores
-    strength        INT         NOT NULL CHECK (strength >= 0     AND strength <= 20),
-    dexterity       INT         NOT NULL CHECK (dexterity >= 0    AND dexterity <= 20),
-    constitution    INT         NOT NULL CHECK (constitution >= 0 AND constitution <= 20),
-    intelligence    INT         NOT NULL CHECK (intelligence >= 0 AND intelligence <= 20),
-    wisdom          INT         NOT NULL CHECK (wisdom >= 0       AND wisdom <= 20),
-    charisma        INT         NOT NULL CHECK (charisma >= 0     AND charisma <= 20),
--- Health
-    max_hp          INT         NOT NULL CHECK (max_hp >= 0),
-    damage          INT         NOT NULL CHECK (damage >= 0),
-    nonlethal       INT         NOT NULL CHECK (nonlethal >= 0),
--- Money
-    copper          INT         NOT NULL CHECK (copper >= 0),
-    silver          INT         NOT NULL CHECK (silver >= 0),
-    gold            INT         NOT NULL CHECK (gold >= 0),
-    platinum        INT         NOT NULL CHECK (platinum >= 0)
+
+    strength        SMALLINT    NOT NULL CHECK (strength >= 0     AND strength <= 20),
+    dexterity       SMALLINT    NOT NULL CHECK (dexterity >= 0    AND dexterity <= 20),
+    constitution    SMALLINT    NOT NULL CHECK (constitution >= 0 AND constitution <= 20),
+    intelligence    SMALLINT    NOT NULL CHECK (intelligence >= 0 AND intelligence <= 20),
+    wisdom          SMALLINT    NOT NULL CHECK (wisdom >= 0       AND wisdom <= 20),
+    charisma        SMALLINT    NOT NULL CHECK (charisma >= 0     AND charisma <= 20),
+
+    max_hp          SMALLINT    NOT NULL CHECK (max_hp >= 0),
+    damage          SMALLINT    NOT NULL CHECK (damage >= 0),
+    nonlethal       SMALLINT    NOT NULL CHECK (nonlethal >= 0),
+
+    copper          SMALLINT    NOT NULL CHECK (copper >= 0),
+    silver          SMALLINT    NOT NULL CHECK (silver >= 0),
+    gold            SMALLINT    NOT NULL CHECK (gold >= 0),
+    platinum        SMALLINT    NOT NULL CHECK (platinum >= 0)
 );
 
 --Class tables
 CREATE TABLE IF NOT EXISTS Classes (
-    id                  UUID        PRIMARY KEY,
-    name                TEXT        NOT NULL,
-    hit_die             TEXT        NOT NULL,
-    starting_wealth     TEXT        NOT NULL,
-    bab_per_level       REAL        NOT NULL,
-    skills_per_level    INT         NOT NULL,
-    skills_attr         Attribute   NOT NULL
+    id                  UUID                PRIMARY KEY,
+    description         TEXT                NOT NULL,
+    name                TEXT                NOT NULL,
+    hit_die             TEXT                NOT NULL,
+    starting_wealth     TEXT                NOT NULL,
+    bab_per_level       DOUBLE PRECISION    NOT NULL,
+    skills_per_level    SMALLINT            NOT NULL,
+    skills_attr         Attribute           NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Subclasses (
@@ -361,40 +367,33 @@ CREATE TABLE IF NOT EXISTS Subclasses (
 );
 
 CREATE TABLE IF NOT EXISTS characterSubclasses (
-    char_id         UUID    REFERENCES Characters(id) NOT NULL,
-    subclass_id     UUID    REFERENCES Subclasses(id) NOT NULL,
-    levels_taken    INT     NOT NULL CHECK (levels_taken > 0),
-    hp_taken        INT     NOT NULL CHECK (hp_taken >= 0),
-    skills_taken    INT     NOT NULL CHECK (skills_taken >= 0)
+    char_id         UUID        REFERENCES Characters(id) NOT NULL,
+    subclass_id     UUID        REFERENCES Subclasses(id) NOT NULL,
+    levels_taken    SMALLINT    NOT NULL CHECK (levels_taken > 0),
+    hp_taken        SMALLINT    NOT NULL CHECK (hp_taken >= 0),
+    skills_taken    SMALLINT    NOT NULL CHECK (skills_taken >= 0)
 );
 
 --Feats tables
 CREATE TABLE IF NOT EXISTS Feats (
     id                  UUID    PRIMARY KEY,
+    name                TEXT    UNIQUE NOT NULL,
     short_description   TEXT    NOT NULL,
     long_description    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS SkillFeatUnits (
-    id          UUID   PRIMARY KEY,
-    req_skill   Skill  NOT NULL,
-    ranks       INT    NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS SkillReqUnits (
-    feat_id         UUID    REFERENCES Feats(id) NOT NULL,
-    skill_unit_id   UUID    REFERENCES SkillFeatUnits(id) NOT NULL
+    id          UUID        REFERENCES Feats(id) NOT NULL,
+    skill       Skill       NOT NULL,
+    ranks       SMALLINT    NOT NULL,
+    PRIMARY KEY (id, skill)
 );
 
 CREATE TABLE IF NOT EXISTS AttributeFeatUnits (
-    id              UUID        PRIMARY KEY,
-    req_attr        Attribute   NOT NULL,
-    score           INT         NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS AttributeReqUnits (
-    feat_id         UUID    REFERENCES Feats(id) NOT NULL,
-    attr_unit_id    UUID    REFERENCES AttributeFeatUnits(id) NOT NULL
+    id              UUID        REFERENCES Feats(id) NOT NULL,
+    attr            Attribute   NOT NULL,
+    score           SMALLINT    NOT NULL CHECK(score != 0),
+    PRIMARY KEY (id, attr)
 );
 
 --this table creates a many to many realationship internally between feats.
@@ -403,22 +402,26 @@ CREATE TABLE IF NOT EXISTS AttributeReqUnits (
 --this table accomplishes that.
 CREATE TABLE IF NOT EXISTS FeatRequirements (
     feat_id         UUID    REFERENCES Feats(id) NOT NULL,
-    required_feat   UUID    REFERENCES Feats(id) NOT NULL
+    required_feat   UUID    REFERENCES Feats(id) NOT NULL,
+    CHECK (feat_id != required_feat)
 );
 
 CREATE TABLE IF NOT EXISTS CharacterFeats (
-    char_id     UUID    REFERENCES Characters(id) NOT NULL,
-    feat_id     UUID    REFERENCES Feats(id) NOT NULL
+    char_id     UUID    REFERENCES Characters(id),
+    feat_id     UUID    REFERENCES Feats(id),
+    PRIMARY KEY (char_id, feat_id)
 );
 
 CREATE TABLE IF NOT EXISTS RacialFeats (
-    race_id     UUID    REFERENCES Races(id) NOT NULL,
-    feat_id     UUID    REFERENCES Feats(id) NOT NULL
+    race_id     UUID    REFERENCES Races(id),
+    feat_id     UUID    REFERENCES Feats(id),
+    PRIMARY KEY (race_id, feat_id)
 );
 
 CREATE TABLE IF NOT EXISTS ClassFeats (
-    class_id    UUID    REFERENCES Classes(id) NOT NULL,
-    feat_id     UUID    REFERENCES Feats(id) NOT NULL
+    class_id    UUID    REFERENCES Classes(id),
+    feat_id     UUID    REFERENCES Feats(id),
+    PRIMARY KEY (class_id, feat_id)
 );
 
 --Features tables
@@ -443,39 +446,28 @@ CREATE TABLE IF NOT EXISTS SubclassFeatures (
     feature_id      UUID    REFERENCES Features(id) NOT NULL
 );
 
---class proficiencies tables
-CREATE TABLE IF NOT EXISTS ClassWeaponsNotProficient (
-    class_id        UUID            REFERENCES Classes(id) NOT NULL,
-    weapon_classes  WeaponClass[]   NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS ClassArmorsNotProficient (
-    class_id        UUID            REFERENCES Classes(id) NOT NULL,
-    armor_classes   ArmorClass[]    NOT NULL
-);
-
---Materials Tables
-CREATE TABLE IF NOT EXISTS Materials (
-    id              UUID    PRIMARY KEY,
-    name            TEXT    NOT NULL,
-    description     TEXT    NOT NULL,
-    --both of these are not universal for materials, as far as I can tell.
-    hp_per_inch     INT,
-    hardness        INT
-);
-
 --Item tables
 CREATE TABLE IF NOT EXISTS Items (
     id              UUID    PRIMARY KEY,
     name            TEXT    NOT NULL,
     description     TEXT,
     cost            INT     NOT NULL CHECK (cost >= 0), -- prices are in copper
-    weight          INT     NOT NULL CHECK (weight >=0),
+    weight          FLOAT8  NOT NULL CHECK (weight >=0),
     equip_slot      EquipmentSlot
 );
 
+--Materials Tables
+CREATE TABLE IF NOT EXISTS Materials (
+    id              UUID    PRIMARY KEY,
+    name            TEXT    UNIQUE NOT NULL,
+    description     TEXT    NOT NULL,
+    --both of these are not universal for materials, as far as I can tell.
+    hp_per_inch     INT,
+    hardness        INT
+);
+
 CREATE TABLE IF NOT EXISTS Weapons (
-    item_id         UUID            REFERENCES Items(id) NOT NULL,
+    id              UUID            PRIMARY KEY REFERENCES Items(id),
     material_id     UUID            REFERENCES Materials(id),
     weapon_range    INT4RANGE       NOT NULL,
     crit_range      INT4RANGE       NOT NULL,
@@ -485,13 +477,48 @@ CREATE TABLE IF NOT EXISTS Weapons (
 );
 
 CREATE TABLE IF NOT EXISTS Armor (
-    item_id         UUID        REFERENCES Items(id) NOT NULL,
+    id              UUID        PRIMARY KEY REFERENCES Items(id),
     material_id     UUID        REFERENCES Materials(id),
     max_dex_bonus   INT         NOT NULL CHECK (max_dex_bonus >= 0),
     ac              INT         NOT NULL CHECK (ac >= 0),
     spell_failure   INT         NOT NULL CHECK (spell_failure >= 0),
     check_penalty   INT         NOT NULL CHECK (check_penalty >= 0),
     armor_type      ArmorClass  NOT NULL
+);
+
+--class proficiencies tables
+CREATE TABLE IF NOT EXISTS ClassProficientArmorClasses (
+    class_id        UUID            PRIMARY KEY REFERENCES Classes(id),
+    armor_classes   ArmorClass[]    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ClassProficientArmor (
+    class_id    UUID    REFERENCES Classes(id),
+    armor_id    UUID    REFERENCES Armor(id),
+    PRIMARY KEY (class_id, armor_id)
+);
+
+CREATE TABLE IF NOT EXISTS ClassNotProficientArmor (
+    class_id    UUID    REFERENCES Classes(id),
+    armor_id    UUID    REFERENCES Armor(id),
+    PRIMARY KEY (class_id, armor_id)
+);
+
+CREATE TABLE IF NOT EXISTS ClassProficientWeaponClasses (
+    class_id        UUID            PRIMARY KEY REFERENCES Classes(id),
+    weapon_classes  WeaponClass[]   NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ClassProficientWeapons (
+    class_id    UUID    REFERENCES Classes(id),
+    weapon_id   UUID    REFERENCES Weapons(id),
+    PRIMARY KEY (class_id, weapon_id)
+);
+
+CREATE TABLE IF NOT EXISTS ClassNotProficientWeapons (
+    class_id    UUID    REFERENCES Classes(id),
+    weapon_id   UUID    REFERENCES Weapons(id),
+    PRIMARY KEY (class_id, weapon_id)
 );
 
 CREATE TABLE IF NOT EXISTS Bags (
@@ -503,7 +530,8 @@ CREATE TABLE IF NOT EXISTS Bags (
 
 CREATE TABLE IF NOT EXISTS ItemsInBags (
     item_id     UUID    REFERENCES Items(id) NOT NULL,
-    bag_id      UUID    REFERENCES Bags(id) NOT NULL
+    bag_id      UUID    REFERENCES Bags(id) NOT NULL,
+    count       INT     NOT NULL CHECK (count > 0)
 );
 
 CREATE TABLE IF NOT EXISTS CharacterEquipment (
@@ -515,28 +543,28 @@ CREATE TABLE IF NOT EXISTS CharacterEquipment (
 CREATE TABLE IF NOT EXISTS Spells (
     id                  UUID            PRIMARY KEY,
     name                TEXT            NOT NULL,
-    level               INT             NOT NULL CHECK (level >= 0),
+    level               SMALLINT        NOT NULL CHECK (level >= 0),
     school              MagicSchool     NOT NULL,
-    casting_time        INT             NOT NULL CHECK (casting_time >= 0),
+    casting_time        BIGINT          NOT NULL CHECK (casting_time >= 0),
     range               SpellRange      NOT NULL,
     area                TEXT            NOT NULL,
-    duration_per_level  INT             NOT NULL CHECK (duration_per_level > 0),
+    duration_per_level  BIGINT          NOT NULL CHECK (duration_per_level > 0),
     saving_throw        SaveThrow,
     spell_resistance    BOOLEAN         DEFAULT false,
     description         TEXT            NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS CharacterSpells (
-    char_id     UUID    REFERENCES Characters(id) NOT NULL,
-    spell_id    UUID    REFERENCES Spells(id) NOT NULL,
-    casts       INT     NOT NULL CHECK (casts >= 0)
+    char_id     UUID        REFERENCES Characters(id) NOT NULL,
+    spell_id    UUID        REFERENCES Spells(id) NOT NULL,
+    casts       SMALLINT    NOT NULL CHECK (casts >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS SubclassSpells (
-    subclass_id     UUID    REFERENCES Subclasses(id),
-    spell_id        UUID    REFERENCES Spells(id),
-    casts           INT     NOT NULL CHECK (casts >= 0),
-    req_level       INT     NOT NULL CHECK (req_level >= 0)
+    subclass_id     UUID        REFERENCES Subclasses(id),
+    spell_id        UUID        REFERENCES Spells(id),
+    casts           SMALLINT    NOT NULL CHECK (casts >= 0),
+    req_level       SMALLINT    NOT NULL CHECK (req_level >= 0)
 );
 
 --Domain tables
@@ -548,15 +576,15 @@ CREATE TABLE IF NOT EXISTS Domains (
 );
 
 CREATE TABLE IF NOT EXISTS DomainSpells (
-    domain_id   UUID    REFERENCES Domains(id),
-    spell_id    UUID    REFERENCES Spells(id),
-    casts       INT     NOT NULL CHECK (casts >= 0)
+    domain_id   UUID        REFERENCES Domains(id),
+    spell_id    UUID        REFERENCES Spells(id),
+    casts       SMALLINT    NOT NULL CHECK (casts >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS SpellComponents (
     spell_id        UUID            REFERENCES Spells(id) NOT NULL,
     item_id         UUID            REFERENCES Items(id),
-    item_amount     INT             CHECK (item_amount >= 0),
+    item_amount     SMALLINT        CHECK (item_amount >= 0),
     component_type  ComponentType   NOT NULL
 );
 
@@ -572,13 +600,15 @@ CREATE TABLE IF NOT EXISTS DeityDomains (
 );
 
 CREATE TABLE IF NOT EXISTS DeityWeapons (
-    deity_id    UUID    REFERENCES Deities(id) NOT NULL,
-    item_id     UUID    REFERENCES Items(id)
+    deity_id    UUID    REFERENCES Deities(id),
+    item_id     UUID    REFERENCES Weapons(id),
+    PRIMARY KEY (deity_id, item_id)
 );
 
 --Effects tables
 CREATE TABLE IF NOT EXISTS Effects (
     id                  UUID    PRIMARY KEY,
+    name                TEXT    UNIQUE NOT NULL,
     short_description   TEXT    NOT NULL,
     long_description    TEXT
 );
@@ -635,55 +665,34 @@ CREATE TABLE IF NOT EXISTS MaterialEffects (
 );
 
 CREATE TABLE IF NOT EXISTS AttributeUnits (
-    id              UUID        PRIMARY KEY,
-    base_attr       Attribute   NOT NULL,
-    modifier        INT         NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS AttributeEffectUnits (
-    effect_id       UUID REFERENCES Effects(id) NOT NULL,
-    attr_unit_id    UUID REFERENCES AttributeUnits(id) NOT NULL
+    id              UUID        REFERENCES Effects(id),
+    attr            Attribute   NOT NULL,
+    modifier        SMALLINT    NOT NULL,
+    PRIMARY KEY (id, attr)
 );
 
 CREATE TABLE IF NOT EXISTS SkillUnits (
-    id              UUID    PRIMARY KEY,
-    skill           Skill   NOT NULL,
-    modifier        INT     NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS SkillEffectUnits (
-    effect_id       UUID    REFERENCES Effects(id) NOT NULL,
-    skill_unit_id   UUID    REFERENCES SkillUnits(id) NOT NULL
+    id              UUID        REFERENCES Effects(id),
+    skill           Skill       NOT NULL,
+    modifier        SMALLINT    NOT NULL,
+    PRIMARY KEY (id, skill)
 );
 
 CREATE TABLE IF NOT EXISTS CharacterUnits (
-    id              UUID            PRIMARY KEY,
-    character_stat  CharacterStat   NOT NULL,
-    modifier        INT             NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS CharacterEffectUnits (
-    effect_id       UUID    REFERENCES Effects(id) NOT NULL,
-    char_unit_id    UUID    REFERENCES CharacterUnits(id) NOT NULL
+    id              UUID            REFERENCES Effects(id),
+    stat            CharacterStat   NOT NULL,
+    modifier        SMALLINT        NOT NULL,
+    PRIMARY KEY (id, stat)
 );
 
 CREATE TABLE IF NOT EXISTS CombatUnits (
-    id              UUID        PRIMARY KEY,
-    combat_stat     CombatStat  NOT NULL,
-    modifier        INT         NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS CombatEffectUnits (
-    effect_id       UUID    REFERENCES Effects(id) NOT NULL,
-    combat_unit_id  UUID    REFERENCES CombatUnits(id) NOT NULL
+    id              UUID        REFERENCES Effects(id),
+    stat            CombatStat  NOT NULL,
+    modifier        SMALLINT    NOT NULL,
+    PRIMARY KEY (id, stat)
 );
 
 CREATE TABLE IF NOT EXISTS MiscUnits (
-    id              UUID    PRIMARY KEY NOT NULL,
+    id              UUID    PRIMARY KEY REFERENCES Effects(id) NOT NULL,
     description     TEXT    NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS MiscEffectUnits (
-    effect_id       UUID    REFERENCES Effects(id) NOT NULL,
-    misc_unit_id    UUID    REFERENCES MiscUnits(id) NOT NULL
 );

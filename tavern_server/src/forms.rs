@@ -5,7 +5,7 @@ use warp::Rejection;
 
 mod tests {
     use super::*;
-    use nebula_form::{Form, FormFile, Field};
+    use nebula_form::{Field, Form, FormFile};
 
     const FIELD_MISSING_OOPS: &str = "oops";
     const FIELD_TEXT_FOO: &str = "foo";
@@ -18,11 +18,14 @@ mod tests {
     fn generate_form() -> Form {
         let mut form = Form::new();
         form.insert(FIELD_TEXT_FOO, Field::Text(VALUE_TEXT_FOO.to_string()));
-        form.insert(FIELD_FILE_BAZ, Field::File(FormFile {
-            filename: VALUE_FILE_BAZ_NAME.to_string(),
-            content_type: VALUE_FILE_BAZ_TYPE.to_string(),
-            bytes: VALUE_FILE_BAZ_CONTENT.into(),
-        }));
+        form.insert(
+            FIELD_FILE_BAZ,
+            Field::File(FormFile {
+                filename: VALUE_FILE_BAZ_NAME.to_string(),
+                content_type: VALUE_FILE_BAZ_TYPE.to_string(),
+                bytes: VALUE_FILE_BAZ_CONTENT.into(),
+            }),
+        );
         form
     }
 

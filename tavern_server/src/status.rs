@@ -12,8 +12,8 @@ mod tests {
         let msg = "an error message";
         let rej = server_error_into_rejection(msg.to_string());
 
-        let status: Status<Error> = Status::recover(rej)
-            .expect("rejection should contain a status");
+        let status: Status<Error> =
+            Status::recover(rej).expect("rejection should contain a status");
 
         assert_eq!(status.code(), &StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(status.data().unwrap().message, msg);
@@ -32,16 +32,20 @@ pub(crate) fn server_error_into_rejection(msg: String) -> Rejection {
 }
 
 pub(crate) fn invalid_header_error(header: &str) -> Rejection {
-    Status::with_data(&StatusCode::BAD_REQUEST, Error::new(format!("invalid header: {}", header))).into()
+    Status::with_data(
+        &StatusCode::BAD_REQUEST,
+        Error::new(format!("invalid header: {}", header)),
+    )
+    .into()
 }
 
 /// The application error type. This exists primarily to enable serialization
 /// into the appropriate JSON format.
 #[derive(Serialize, Clone, Debug)]
-pub(crate) struct Error {
+pub struct Error {
     /// The associated message for this error. May be displayed to the client
     /// and/or logged somewhere.
-    pub(crate) message: String,
+    pub message: String,
 }
 
 impl Error {
@@ -65,8 +69,8 @@ impl From<Error> for Bytes {
 /// into JSON. The wrapper exists to enable serialization into the proper
 /// JSON format.
 #[derive(Serialize, Clone, Debug)]
-pub(crate) struct Success<T: Serialize + StatusData> {
-    pub(crate) data: T,
+pub struct Success<T: Serialize + StatusData> {
+    pub data: T,
 }
 
 impl<T: Serialize + StatusData> Success<T> {
