@@ -3,7 +3,7 @@ use crate::status;
 use futures::executor::block_on;
 use lazy_static::lazy_static;
 use sqlx::pool::PoolConnection;
-use sqlx::{Connection as _, Executor, PgConnection, PgPool};
+use sqlx::{Executor, PgConnection, PgPool};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::sync::Arc;

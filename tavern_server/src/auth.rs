@@ -11,13 +11,13 @@ use serde::Serialize;
 use sqlx::postgres::PgRow;
 use sqlx::types::Uuid;
 use sqlx::Error as SQLError;
-use sqlx::{Connection, PgConnection};
+use sqlx::Connection;
 use sqlx::{Cursor, FromRow, Row};
 use std::convert::TryFrom;
 use structopt::StructOpt;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
-use warp::{Filter, Reply};
+use warp::Filter;
 
 /// The length of an Argon2i hash, in bytes.
 pub const ARGON2_HASH_LENGTH: u32 = 32;

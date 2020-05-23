@@ -4,7 +4,6 @@ use nebula_status::{Status, StatusCode};
 use warp::Rejection;
 
 mod tests {
-    use super::*;
     use nebula_form::{Field, Form, FormFile};
 
     const FIELD_MISSING_OOPS: &str = "oops";
@@ -32,14 +31,14 @@ mod tests {
     #[test]
     fn get_form_text_field_works() {
         let form = generate_form();
-        let value = get_form_text_field(&form, FIELD_TEXT_FOO).expect("this should not fail");
+        let value = super::get_form_text_field(&form, FIELD_TEXT_FOO).expect("this should not fail");
         assert_eq!(&value, VALUE_TEXT_FOO);
     }
 
     #[test]
     fn get_file_field_as_text_fails() {
         let form = generate_form();
-        match get_form_text_field(&form, FIELD_FILE_BAZ) {
+        match super::get_form_text_field(&form, FIELD_FILE_BAZ) {
             Ok(_) => assert!(false, "file as text should not have returned successfully"),
             Err(_) => assert!(true),
         }
@@ -48,7 +47,7 @@ mod tests {
     #[test]
     fn get_missing_field_as_text_fails() {
         let form = generate_form();
-        match get_form_text_field(&form, FIELD_MISSING_OOPS) {
+        match super::get_form_text_field(&form, FIELD_MISSING_OOPS) {
             Ok(_) => assert!(false, "getting a missing field should not succeed"),
             Err(_) => assert!(true),
         }
