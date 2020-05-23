@@ -170,8 +170,8 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
 
     let var = input.variants.pairs().zip(var_words)
         .map(|(v, s)| {
-            let v = v.value();
-            quote!{ #v => #s }
+            let v = &v.value().ident;
+            quote!{ #name::#v => #s }
         });
     
     let result = quote! {
