@@ -1,5 +1,4 @@
-use sqlx::Connection as _;
-use tavern_server::db::{self, Error};
+use tavern_server::db;
 
 #[tavern_derive::db_test]
 async fn init_database_succeeds() {

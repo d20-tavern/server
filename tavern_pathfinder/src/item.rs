@@ -19,8 +19,8 @@ pub struct Item {
 
     name: String,
     description: String,
-    cost: u32,
-    weight: u32,
+    cost: i32,
+    weight: f64,
     equip_slot: Option<EquipmentSlot>,
     consumed_effects: Vec<Summary<Effect>>,
 }
@@ -52,8 +52,8 @@ pub struct Bag {
     id: Uuid,
     name: String,
     character: Summary<Character>,
-    contents: BTreeMap<Item, u32>,
-    capacity: u32,
+    contents: BTreeMap<Item, i32>,
+    capacity: i32,
 }
 
 #[derive(Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord)]
@@ -89,8 +89,8 @@ pub struct Weapon {
     #[serde(flatten)]
     item: Item,
     material: Option<Material>,
-    weapon_range: std::ops::Range<u32>,
-    crit_range: std::ops::Range<u32>,
+    weapon_range: std::ops::Range<i32>,
+    crit_range: std::ops::Range<i32>,
     damage: Vec<String>,
     damage_type: Vec<DamageType>,
     weapon_type: WeaponClass,
@@ -119,10 +119,10 @@ pub struct Armor {
     #[serde(flatten)]
     item: Item,
     material: Option<Material>,
-    max_dex_bonus: u32,
-    ac: u32,
-    spell_failure: u32,
-    check_penalty: u32,
+    max_dex_bonus: i32,
+    ac: i32,
+    spell_failure: i32,
+    check_penalty: i32,
     armor_type: ArmorClass,
 }
 
@@ -150,6 +150,6 @@ pub struct Material {
     links: Links,
     name: String,
     description: String,
-    hp_per_inch: Option<u32>,
-    hardness: Option<u32>,
+    hp_per_inch: Option<i32>,
+    hardness: Option<i32>,
 }

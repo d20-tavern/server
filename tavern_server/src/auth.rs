@@ -5,7 +5,7 @@ use argon2::{self, Config, ThreadMode, Variant, Version};
 use bytes::Bytes;
 use http::HeaderValue;
 use nebula_form::Form;
-use nebula_status::{Status, StatusCode};
+use nebula_status::{Empty, Status, StatusCode};
 use rand::RngCore;
 use serde::Serialize;
 use sqlx::postgres::PgRow;
@@ -250,15 +250,17 @@ pub struct Argon2Opt {
 }
 
 impl<'c> FromRow<'c, PgRow<'c>> for Argon2Opt {
+    // The argon2 library we are using expects u32, but postgres
+    // only supports signed integers.
     fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
-        let memory: u32 = row.try_get("memory")?;
-        let time_cost: u32 = row.try_get("time_cost")?;
-        let threads: u32 = row.try_get("threads")?;
+        let memory: i32 = row.try_get("memory")?;
+        let time_cost: i32 = row.try_get("time_cost")?;
+        let threads: i32 = row.try_get("threads")?;
 
         Ok(Argon2Opt {
-            memory,
-            time_cost,
-            threads,
+            memory: memory as u32,
+            time_cost: time_cost as u32,
+            threads: threads as u32,
         })
     }
 }
@@ -266,6 +268,7 @@ impl<'c> FromRow<'c, PgRow<'c>> for Argon2Opt {
 impl From<Argon2Opt> for argon2::Config<'static> {
     fn from(opt: Argon2Opt) -> Config<'static> {
         let mut config = Config::default();
+        config.hash_length = ARGON2_HASH_LENGTH;
         config.variant = Variant::Argon2i;
         config.version = Version::Version13;
         config.thread_mode = ThreadMode::Parallel;
@@ -276,30 +279,35 @@ impl From<Argon2Opt> for argon2::Config<'static> {
     }
 }
 
+/// The name of the user email's UNIQUE column constraint
+const CONSTRAINT_USER_EMAIL_UNIQUE: &'static str = "user_email_unique";
+/// The name of the user email's UNIQUE column constraint
+const CONSTRAINT_USER_USERNAME_UNIQUE: &'static str = "user_username_unique";
+
 /// The expected form field name for the user ID.
-const FIELD_USER_ID: &'static str = "user-id";
+pub const FIELD_USER_ID: &'static str = "user-id";
 /// The expected form field name for the user's email.
-const FIELD_EMAIL: &'static str = "email";
+pub const FIELD_EMAIL: &'static str = "email";
 /// The expected form field name for whether the user is an admin
 /// or not (ignored in certain contexts).
-const FIELD_IS_ADMIN: &'static str = "is-admin";
+pub const FIELD_IS_ADMIN: &'static str = "is-admin";
 /// The expected form field name for the user's password.
-const FIELD_PASSWORD: &'static str = "password";
+pub const FIELD_PASSWORD: &'static str = "password";
 /// The expected form field name for the user's username.
-const FIELD_USERNAME: &'static str = "username";
+pub const FIELD_USERNAME: &'static str = "username";
 
 /// Represents a user of the application.
 #[derive(Serialize, Clone, Debug)]
-pub(crate) struct User {
+pub struct User {
     /// The User's unique ID. If None, this user is being registered
     /// or is invalid.
-    pub(crate) id: Option<Uuid>,
+    pub id: Option<Uuid>,
     /// The User's username.
-    pub(crate) username: String,
+    pub username: String,
     /// The User's email address.
-    pub(crate) email: String,
+    pub email: String,
     /// Whether the User is an admin or not.
-    pub(crate) is_admin: bool,
+    pub is_admin: bool,
 }
 
 impl PartialEq for User {
@@ -426,14 +434,14 @@ impl TryFrom<Form> for RegistrationInfo {
 fn generate_salt() -> BoxedFilter<(Vec<u8>,)> {
     warp::any()
         .and_then(|| async move {
-            let mut salt: Vec<u8> = Vec::with_capacity(ARGON2_SALT_LENGTH);
+            let mut salt = [0u8; ARGON2_SALT_LENGTH];
             rand::thread_rng()
-                .try_fill_bytes(&mut salt)
-                .map(|_| salt)
+                .try_fill_bytes(&mut salt[..])
+                .map(|_| salt.to_vec())
                 .map_err(|err| {
                     Status::with_message(&StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err))
                 })
-                .map_err(|err| -> Rejection { err.into() })
+                .map_err(|err| Rejection::from(err))
         })
         .boxed()
 }
@@ -491,8 +499,7 @@ async fn register_in_database(
     let query = sqlx::query(
         r"INSERT INTO Users
     (id, email, username, pass_hash, salt, time_cost, memory, threads)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    ON CONFLICT DO NOTHING",
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
     )
     .bind(&id)
     .bind(&user.email)
@@ -508,12 +515,12 @@ async fn register_in_database(
             SQLError::Database(dberr) => {
                 match dberr.code() {
                     Some(db::PG_ERROR_UNIQUE_VIOLATION) => {
-                        match dberr.column_name() {
+                        match dberr.constraint_name() {
                             None => status::server_error_into_rejection(dberr.to_string()),
                             Some(name) => match name {
                                 // Before updating this code with new columns, ensure that no
                                 // sensitive information will end up in the error message.
-                                "email" | "username" => Status::with_data(
+                                CONSTRAINT_USER_EMAIL_UNIQUE | CONSTRAINT_USER_USERNAME_UNIQUE => Status::with_data(
                                     &StatusCode::BAD_REQUEST,
                                     Error::new(format!("user with that {} already exists", name)),
                                 )
@@ -547,7 +554,7 @@ async fn registration_to_user_auth(
 }
 
 /// A warp Filter containing the full registration endpoint.
-pub(crate) fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
+pub fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
     get_registration_info()
         .and(generate_salt())
         .and(get_argon2_config())
@@ -643,7 +650,7 @@ async fn user_from_credentials(
 }
 
 /// A Filter that provides an instance of the authenticated user.
-pub(crate) fn user_filter() -> BoxedFilter<(User,)> {
+pub fn user_filter() -> BoxedFilter<(User,)> {
     credentials_from_header()
         .and(db::conn_filter())
         .and_then(user_from_credentials)
@@ -651,8 +658,8 @@ pub(crate) fn user_filter() -> BoxedFilter<(User,)> {
 }
 
 /// An endpoint that tests if the user credentials are correct and nothing more.
-pub(crate) fn login_filter() -> BoxedFilter<(impl Reply,)> {
+pub fn login_filter() -> BoxedFilter<(Status<Empty>,)> {
     user_filter()
-        .map(|_| (Status::new(&StatusCode::OK),))
+        .map(|_| Status::new(&StatusCode::OK))
         .boxed()
 }

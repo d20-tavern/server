@@ -16,13 +16,13 @@ pub struct Spell {
     id: Uuid,
     components: BTreeSet<SpellComponent>,
     name: String,
-    level: u32,
+    level: i16,
     school: MagicSchool,
     effects: Vec<Summary<Effect>>,
-    casting_time: u32,
+    casting_time: i64,
     range: SpellRange,
     area: String,
-    duration_per_level: u32,
+    duration_per_level: i64,
     saving_throw: Option<SaveThrow>,
     spell_resistance: bool,
     description: String,
@@ -32,7 +32,7 @@ pub struct Spell {
 pub struct MaterialComponent {
     item: Summary<Item>,
     description: String,
-    amount: u32,
+    amount: i16,
 }
 
 #[derive(Serialize, Deserialize)]

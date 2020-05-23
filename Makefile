@@ -5,16 +5,27 @@ export
 # Do not run tests on tavern_derive directly: panic=abort is not supported
 CARGO_TEST_FLAGS=-p tavern_server -p tavern_pathfinder
 CARGO_INCREMENTAL=0
-RUSTFLAGS=-Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zmacro-backtrace
 CARGO_VERBOSE=false
 
-ifeq (${CARGO_VERBOSE}, true)
-CARGO_VERBOSE_FLAG=--verbose
+ifeq (${CARGO_NIGHTLY}, test)
+	CARGO_VERBOSE_FLAG=--verbose
+	CARGO_COMMAND=rustup run nightly cargo
+	RUSTUP_TARGET=rustup-nightly
+	RUSTFLAGS=-Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Z macro-backtrace
 else
-CARGO_VERBOSE_FLAG=
+	CARGO_COMMAND=rustup run stable cargo
+	CARGO_VERBOSE_FLAG=
+	RUSTUP_TARGET=rustup-stable
+	RUSTFLAGS=
 endif
 
 all: test test-db
+
+postgres:
+	@if which systemctl &> /dev/null && ! systemctl is-active postgresql; then\
+		echo "Starting postgresql";\
+		sudo systemctl start postgresql;\
+	fi
 
 rustup:
 	@if ! which rustup &> /dev/null; then\
@@ -29,12 +40,15 @@ rustup-nightly: rustup
 		rustup toolchain install nightly;\
 	fi
 
-test: rustup-nightly
-	rustup run nightly cargo test ${CARGO_TEST_FLAGS} ${CARGO_VERBOSE_FLAG}
+rustup-stable: rustup
+	@if [ -z "$(shell rustup toolchain list | grep "stable-x86_64-unknown-linux-")" ]; then\
+		echo "Installing stable toolchain";\
+		rustup toolchain install stable;\
+	fi
 
-test-db: rustup-nightly
-	export RUST_TEST_THREADS=1
-	rustup run nightly cargo test ${CARGO_TEST_FLAGS} ${CARGO_VERBOSE_FLAG} --all-features
+test: ${RUSTUP_TARGET}
+	${CARGO_COMMAND} test ${CARGO_TEST_FLAGS}
 
-clean: rustup-nightly
-	rustup run nightly cargo clean
+test-db: export RUST_TEST_THREADS = 1
+test-db: ${RUSTUP_TARGET} postgres
+	${CARGO_COMMAND} test ${CARGO_TEST_FLAGS} --all-features
