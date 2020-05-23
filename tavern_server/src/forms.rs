@@ -89,7 +89,7 @@ pub(crate) fn field_is_invalid_error(field_name: &str) -> Rejection {
 /// error.
 pub(crate) fn get_form_text_field(form: &Form, field_name: &str) -> Result<String, Rejection> {
     form.get(field_name)
-        .ok_or(missing_field_error(field_name))?
+        .ok_or_else(|| missing_field_error(field_name))?
         .as_text()
         .map(|txt| txt.to_string())
         .ok_or_else(|| field_is_file_error(field_name))

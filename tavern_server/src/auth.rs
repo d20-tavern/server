@@ -280,21 +280,21 @@ impl From<Argon2Opt> for argon2::Config<'static> {
 }
 
 /// The name of the user email's UNIQUE column constraint
-const CONSTRAINT_USER_EMAIL_UNIQUE: &'static str = "user_email_unique";
+const CONSTRAINT_USER_EMAIL_UNIQUE: &str = "user_email_unique";
 /// The name of the user email's UNIQUE column constraint
-const CONSTRAINT_USER_USERNAME_UNIQUE: &'static str = "user_username_unique";
+const CONSTRAINT_USER_USERNAME_UNIQUE: &str = "user_username_unique";
 
 /// The expected form field name for the user ID.
-pub const FIELD_USER_ID: &'static str = "user-id";
+pub const FIELD_USER_ID: &str = "user-id";
 /// The expected form field name for the user's email.
-pub const FIELD_EMAIL: &'static str = "email";
+pub const FIELD_EMAIL: &str = "email";
 /// The expected form field name for whether the user is an admin
 /// or not (ignored in certain contexts).
-pub const FIELD_IS_ADMIN: &'static str = "is-admin";
+pub const FIELD_IS_ADMIN: &str = "is-admin";
 /// The expected form field name for the user's password.
-pub const FIELD_PASSWORD: &'static str = "password";
+pub const FIELD_PASSWORD: &str = "password";
 /// The expected form field name for the user's username.
-pub const FIELD_USERNAME: &'static str = "username";
+pub const FIELD_USERNAME: &str = "username";
 
 /// Represents a user of the application.
 #[derive(Serialize, Clone, Debug)]
@@ -441,7 +441,7 @@ fn generate_salt() -> BoxedFilter<(Vec<u8>,)> {
                 .map_err(|err| {
                     Status::with_message(&StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err))
                 })
-                .map_err(|err| Rejection::from(err))
+                .map_err(Rejection::from)
         })
         .boxed()
 }
@@ -477,7 +477,7 @@ async fn hash_password(
     config: &argon2::Config<'static>,
 ) -> Result<Vec<u8>, Rejection> {
     argon2::hash_raw(password, salt, config)
-        .map_err(|err| status::server_error_into_rejection(err.to_string()).into())
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))
 }
 
 /// Takes the given User and UserAuth information, and uses the provided
@@ -578,7 +578,7 @@ fn reject_login_required() -> Rejection {
 
 /// Parse the Authorization header for user credentials
 fn credentials_from_header() -> BoxedFilter<(String, String)> {
-    let auth_header: &'static str = http::header::AUTHORIZATION.as_ref();
+    let auth_header: &'static str = http::header::AUTHORIZATION.as_str();
     warp::filters::header::header::<String>(auth_header)
         .and_then(move |val: String| async move {
             let params = val.split_whitespace().collect::<Vec<&str>>();
@@ -631,7 +631,7 @@ async fn user_from_credentials(
         .next()
         .await
         .map_err(|err| status::server_error_into_rejection(err.to_string()))?
-        .ok_or_else(|| reject_login_required())?;
+        .ok_or_else(reject_login_required)?;
 
     let user =
         User::from_row(&row).map_err(|err| status::server_error_into_rejection(err.to_string()))?;
