@@ -84,7 +84,7 @@ pub fn derive_summarize(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::DeriveInput);
 
     let name = &input.ident;
-    let mut fields;
+    let fields;
 
     match &input.data {
         Data::Struct(struc) => fields = &struc.fields,

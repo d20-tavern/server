@@ -118,7 +118,7 @@ async fn login_wrong_credentials_fails() {
         .expect("Rejection should contain a Status<Empty>");
 
     assert_eq!(stat.code(), &StatusCode::UNAUTHORIZED);
-    let val = stat.headers().get(header::WWW_AUTHENTICATE)
+    stat.headers().get(header::WWW_AUTHENTICATE)
         .expect("WWW-Authenticate header must exist");
 }
 

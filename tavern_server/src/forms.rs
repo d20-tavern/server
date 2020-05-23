@@ -3,6 +3,7 @@ use nebula_form::Form;
 use nebula_status::{Status, StatusCode};
 use warp::Rejection;
 
+#[cfg(test)]
 mod tests {
     use nebula_form::{Field, Form, FormFile};
 

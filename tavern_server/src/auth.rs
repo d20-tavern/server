@@ -337,11 +337,11 @@ impl TryFrom<Form> for User {
                     .ok_or_else(|| forms::field_is_file_error(FIELD_IS_ADMIN))?
             })
             .unwrap_or(Ok(false))?;
-        let mut id = form.get(FIELD_USER_ID).map(|field| {
+        let id = form.get(FIELD_USER_ID).map(|field| {
             field
                 .as_text()
                 .map(|val| {
-                    Uuid::parse_str(val).map_err(|err| forms::field_is_invalid_error(FIELD_USER_ID))
+                    Uuid::parse_str(val).map_err(|_| forms::field_is_invalid_error(FIELD_USER_ID))
                 })
                 .ok_or_else(|| forms::field_is_file_error(FIELD_USER_ID))?
         });
