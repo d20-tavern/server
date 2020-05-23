@@ -10,7 +10,6 @@ documentation = "https://docs.rs/tavern_pathfinder"
 readme = "README.md"
 #homepage = ""
 repository = "https://github.com/d20-tavern/server"
-license = "MPL-2.0"
 license-file = "LICENSE"
 keywords = ["pathfinder", "tabletop", "roleplaying", "d20", "characters"]
 #categories = 
