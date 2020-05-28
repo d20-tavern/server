@@ -39,6 +39,14 @@ pub(crate) fn invalid_header_error(header: &str) -> Rejection {
     .into()
 }
 
+pub(crate) fn not_found() -> Rejection {
+    Status::new(&StatusCode::NOT_FOUND).into()
+}
+
+pub(crate) fn not_authorized() -> Rejection {
+    Status::new(&StatusCode::UNAUTHORIZED).into()
+}
+
 /// The application error type. This exists primarily to enable serialization
 /// into the appropriate JSON format.
 #[derive(Serialize, Clone, Debug)]

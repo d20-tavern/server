@@ -1,0 +1,17 @@
+[package]
+name = "tavern_db"
+version = "0.1.0"
+authors = ["Michael Bryant <shadow53@shadow53.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1"
+futures = "0.3"
+lazy_static = "1.4"
+sqlx = { version = "0.3", default-features = false, features = [ "chrono", "postgres", "uuid", "runtime-tokio" ] }
+structopt = "0.3"
+tavern_derive = { version = "0.1", path = "../tavern_derive" }
+tokio = { version = "0.2", features = ["full"] }
+uuid = { version = "0.8", features = [ "v4", "serde" ] }

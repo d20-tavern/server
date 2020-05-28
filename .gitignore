@@ -11,3 +11,6 @@ Cargo.lock
 
 # Env files are specific to the machine
 **/.env
+
+# Intellij files
+.idea/

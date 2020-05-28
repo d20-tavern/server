@@ -20,7 +20,15 @@ maintenance = { status = "actively-developed" }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+tavern = [ "tavern_db", "sqlx" ]
+
 [dependencies]
-serde = {version = "1.0.106", features = ["derive"]}
+async-trait = "0.1"
+futures = "0.3"
+serde = { version = "1.0.106", features = ["derive"] }
+sqlx = { version = "0.3", default-features = false, features = [ "chrono", "macros", "postgres", "uuid", "runtime-tokio" ], optional = true }
+tavern_db = {version = "0.1", path = "../tavern_db", optional = true }
 tavern_derive = {version = "0.1", path = "../tavern_derive"}
+tokio = { version = "0.2", features = [ "blocking", "macros", "stream", "sync" ] }
 uuid = {version = "0.8", features = ["serde"]}

@@ -138,9 +138,9 @@ DO $$ BEGIN
         'Damage Reduction',
         'Spell Resistance',
         'Speed',
-        'Fortitude Save',
-        'Reflex Save',
-        'Will Save'
+        'Fortitude',
+        'Reflex',
+        'Will'
     );
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -229,7 +229,6 @@ END $$;
 
 DO $$ BEGIN
     CREATE TYPE EquipmentSlot AS ENUM (
-        'NoSlot',
         'Armor', 
         'Belts', 
         'Body', 
@@ -361,12 +360,14 @@ CREATE TABLE IF NOT EXISTS Classes (
 
 CREATE TABLE IF NOT EXISTS Subclasses (
     id              UUID        PRIMARY KEY,
+    name            TEXT        NOT NULL UNIQUE,
+    description     TEXT        NOT NULL,
     class_id        UUID        REFERENCES Classes(id) NOT NULL,
     caster_type     CasterType,
     casting_attr    Attribute
 );
 
-CREATE TABLE IF NOT EXISTS characterSubclasses (
+CREATE TABLE IF NOT EXISTS CharacterSubclasses (
     char_id         UUID        REFERENCES Characters(id) NOT NULL,
     subclass_id     UUID        REFERENCES Subclasses(id) NOT NULL,
     levels_taken    SMALLINT    NOT NULL CHECK (levels_taken > 0),
@@ -582,6 +583,7 @@ CREATE TABLE IF NOT EXISTS DomainSpells (
 );
 
 CREATE TABLE IF NOT EXISTS SpellComponents (
+    id              UUID            PRIMARY KEY,
     spell_id        UUID            REFERENCES Spells(id) NOT NULL,
     item_id         UUID            REFERENCES Items(id),
     item_amount     SMALLINT        CHECK (item_amount >= 0),
@@ -589,6 +591,7 @@ CREATE TABLE IF NOT EXISTS SpellComponents (
 );
 
 CREATE TABLE IF NOT EXISTS Subdomains (
+    id              UUID    PRIMARY KEY,
     domain_id       UUID    REFERENCES Domains(id) NOT NULL,
     name            TEXT    NOT NULL,
     description     TEXT    NOT NULL

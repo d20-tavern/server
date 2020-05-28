@@ -514,7 +514,7 @@ async fn register_in_database(
         match err {
             SQLError::Database(dberr) => {
                 match dberr.code() {
-                    Some(db::PG_ERROR_UNIQUE_VIOLATION) => {
+                    Some(tavern_db::PG_ERROR_UNIQUE_VIOLATION) => {
                         match dberr.constraint_name() {
                             None => status::server_error_into_rejection(dberr.to_string()),
                             Some(name) => match name {

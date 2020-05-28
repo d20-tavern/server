@@ -1,5 +1,5 @@
 use crate::auth::Argon2Opt;
-use crate::db::PostgreSQLOpt;
+use tavern_db::PostgreSQLOpt;
 use lazy_static::lazy_static;
 use structopt::StructOpt;
 use warp::filters::BoxedFilter;
