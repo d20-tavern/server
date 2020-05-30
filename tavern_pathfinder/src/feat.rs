@@ -3,40 +3,72 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::summary::{Summarize, Summary};
-use crate::Attributes;
-use crate::Skills;
-#[cfg( feature = "tavern")]
+use crate::{Attribute, Attributes};
+use crate::{Skill, Skills};
+#[cfg(feature = "tavern")]
 use tavern_db::{TryFromRow, TryFromUuid};
+#[cfg(feature = "tavern")]
+use crate::effects::Effect;
 
 #[derive(Serialize, Deserialize, Summarize)]
-#[cfg_attr(feature = "tavern", derive(TryFromRow, TryFromUuid))]
 pub struct Feat {
-    #[cfg_attr(feature = "tavern", tavern(
-        skip, default = "Links::new()"
-    ))]
     links: Links,
     id: Uuid,
     name: String,
     #[description]
     short_description: String,
-    #[cfg_attr(feature = "tavern", tavern(is_optional))]
     long_description: Option<String>,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "Skills",
-        column = "ARRAY(SELECT ROW(skill, ranks) FROM SkillFeatUnits WHERE SkillFeatUnits.id = $1)",
-        is_map
-    ))]
     req_skills: Skills,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "Attributes",
-        column = "ARRAY(SELECT ROW(attr, score) FROM AttributeFeatUnits WHERE AttributeFeatUnits.id = $1)",
-        is_map
-    ))]
     req_attr: Attributes,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "Feat",
-        column = "ARRAY(SELECT required_feat FROM FeatRequirements WHERE FeatRequirements.feat_id = $1)",
-        is_array
-    ))]
     req_feats: Vec<Summary<Feat>>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Feats")]
+pub struct DBFeat {
+    id: Uuid,
+    name: String,
+    short_description: String,
+    long_description: Option<String>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "SkillFeatUnits")]
+#[cfg_attr(feature = "tavern", belongs_to(DBFeat, foreign_key = "feat_id"))]
+pub struct DBFeatRequiredSkill {
+    feat_id: Uuid,
+    skill: Skill,
+    ranks: i16,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "AttributeFeatUnits")]
+#[cfg_attr(feature = "tavern", belongs_to(DBFeat, foreign_key = "feat_id"))]
+pub struct DBFeatRequiredAttribute {
+    feat_id: Uuid,
+    attr: Attribute,
+    score: i16,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "FeatRequirements")]
+#[cfg_attr(feature = "tavern", belongs_to(DBFeat, foreign_key = "feat_id"))]
+#[cfg_attr(feature = "tavern", belongs_to(DBFeat, foreign_key = "required_feat"))]
+pub struct DBFeatRequiredFeat {
+    feat_id: Uuid,
+    required_feat: Uuid,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "FeatEffects")]
+#[cfg_attr(feature = "tavern", belongs_to(DBFeat, foreign_key = "feat_id"))]
+#[cfg_attr(feature = "tavern", belongs_to(DBEffect, foreign_key = "effect_id"))]
+pub struct DBFeatEffect {
+    feat_id: Uuid,
+    effect_id: Uuid,
 }

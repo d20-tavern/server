@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use syn::{LitStr, Type};
+use syn::LitStr;
 use syn::spanned::Spanned;
 use syn::parse::Parse;
 
@@ -32,17 +32,4 @@ pub(crate) fn try_from_lit_str<T: Parse>(s: &LitStr) -> Result<T, TokenStream> {
             )
         )?;
     Ok(val)
-}
-
-pub(crate) fn type_from_path_str(s: &str) -> Result<Type, TokenStream> {
-    let path = syn::parse_str(s)
-        .map_err(|_| compile_error_args!(proc_macro2::Span::call_site(),
-        "internal error: failed to parse {}", s))?;
-
-    Ok(syn::Type::Path(
-        syn::TypePath {
-            qself: None,
-            path,
-        }
-    ))
 }

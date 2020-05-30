@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 pub trait Summarize<T> {
     fn id(&self) -> &Uuid;
-    fn links(&self) -> &Links;
+    fn links(&self) -> Option<&Links>;
     fn name(&self) -> &str;
     fn description(&self) -> &str;
 }
@@ -20,7 +20,7 @@ pub trait Summarize<T> {
 #[derive(Serialize, Deserialize)]
 pub struct Summary<T> {
     id: Uuid,
-    links: Links,
+    links: Option<Links>,
     name: String,
     description: String,
     #[serde(skip)]
@@ -53,7 +53,7 @@ impl<T, U: Summarize<T> + ?Sized> From<&U> for Summary<T> {
     fn from(other: &U) -> Self {
         Self {
             id: other.id().clone(),
-            links: other.links().to_owned(),
+            links: other.links().cloned(),
             name: other.name().to_string(),
             description: other.description().to_string(),
             phantom: Default::default(),
@@ -66,8 +66,8 @@ impl<T> Summarize<T> for Summary<T> {
         &self.id
     }
 
-    fn links(&self) -> &Links {
-        &self.links
+    fn links(&self) -> Option<&Links> {
+        self.links.as_ref()
     }
 
     fn name(&self) -> &str {

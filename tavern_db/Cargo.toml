@@ -8,9 +8,11 @@ edition = "2018"
 
 [dependencies]
 async-trait = "0.1"
+diesel = { version = "1.4.4", features = ["postgres", "extras", "r2d2"] }
+diesel_migrations = { version ="1.4", features = ["postgres"] }
 futures = "0.3"
 lazy_static = "1.4"
-sqlx = { version = "0.3", default-features = false, features = [ "chrono", "postgres", "uuid", "runtime-tokio" ] }
+r2d2 = "0.8"
 structopt = "0.3"
 tavern_derive = { version = "0.1", path = "../tavern_derive" }
 tokio = { version = "0.2", features = ["full"] }

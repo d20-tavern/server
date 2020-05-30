@@ -1,15 +1,18 @@
-use async_trait::async_trait;
-use futures::executor::block_on;
-use sqlx::pool::PoolConnection;
+// This macro_use is necessary until diesel 2.0
+#[macro_use] extern crate diesel;
+
+use diesel::prelude::*;
+use diesel::r2d2::{Pool, PooledConnection, ConnectionManager};
 use uuid::Uuid;
 use lazy_static::lazy_static;
-use sqlx::{Executor, PgConnection, PgPool, postgres::PgRow};
-use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display};
 use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::sync::RwLock;
 pub use tavern_derive::*;
+use diesel::prelude::*;
+use diesel::{result, r2d2};
+use diesel_migrations::embed_migrations;
 
 #[cfg(test)]
 mod tests {
@@ -23,6 +26,7 @@ mod tests {
             database: String::from("test"),
             user: String::from("foo"),
             pass: String::from("bar"),
+            max_connections: 5
         };
 
         let conn_string = ps_opt.to_string();
@@ -38,20 +42,10 @@ mod tests {
     }
 }
 
-pub async fn init() -> Result<(), Error> {
-    let mut conn: Connection = get_connection().await?;
-    let sql = std::str::from_utf8(include_bytes!("db_tables.sql"))
-        .map_err(Error::LoadQuery)?;
-    conn.execute(sql)
-        .await
-        .map_err(Error::RunQuery)?;
-    Ok(())
-}
-
 
 lazy_static! {
-    static ref POOL: Arc<RwLock<PgPool>> = {
-        let pool = PostgreSQLOpt::from_args().try_into().unwrap();
+    static ref POOL: Arc<RwLock<Pool<TavernConnectionManager>>> = {
+        let pool = PostgreSQLOpt::from_args().into();
         let lock = RwLock::new(pool);
         Arc::new(lock)
     };
@@ -90,12 +84,25 @@ pub struct PostgreSQLOpt {
         help = "the password for the database user"
     )]
     pass: String,
+    #[structopt(
+        long = "db-max-conn",
+        env = "TAVERN_DB_MAX_CONNECTIONS",
+        help = "the maximum number of database connections",
+        default_value = "10",
+    )]
+    max_connections: u32,
 }
 
-impl TryFrom<PostgreSQLOpt> for PgPool {
-    type Error = sqlx::Error;
-    fn try_from(opt: PostgreSQLOpt) -> Result<Self, Self::Error> {
-        block_on(PgPool::new(opt.to_string().as_ref()))
+pub type TavernConnectionManager = ConnectionManager<PgConnection>;
+pub type Connection = PooledConnection<TavernConnectionManager>;
+
+impl From<PostgreSQLOpt> for Pool<TavernConnectionManager> {
+    fn from(opt: PostgreSQLOpt) -> Self {
+        let manager = TavernConnectionManager::new(opt.to_string().as_str());
+        Pool::builder()
+            .max_size(opt.max_connections)
+            .build(manager)
+            .unwrap()
     }
 }
 
@@ -103,8 +110,6 @@ impl fmt::Display for PostgreSQLOpt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-//            "host={} port={} dbname={} user={} password={}",
-//            self.host, self.port, self.database, self.user, self.pass
             "postgresql://{}:{}@{}:{}/{}",
             self.user, self.pass, self.host, self.port, self.database
             )
@@ -115,19 +120,15 @@ pub async fn get_connection() -> Result<Connection, Error> {
     (*POOL)
         .read()
         .await
-        .acquire()
-        .await
+        .get()
         .map_err(Error::Connection)
 }
 
-pub type Connection = PoolConnection<PgConnection>;
-
 #[derive(Debug)]
 pub enum Error {
-    Connection(sqlx::Error),
-    Transaction(sqlx::Error),
-    LoadQuery(std::str::Utf8Error),
-    RunQuery(sqlx::Error),
+    Connection(::r2d2::Error),
+    Migration(diesel_migrations::RunMigrationsError),
+    RunQuery(result::Error),
     NoRows,
     UserUnauthorized(Uuid),
 }
@@ -136,8 +137,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Connection(err) => write!(f, "{}", err.to_string()),
-            Error::Transaction(err) => write!(f, "{}", err.to_string()),
-            Error::LoadQuery(err) => write!(f, "{}", err.to_string()),
+            Error::Migration(err) => write!(f, "{}", err.to_string()),
             Error::RunQuery(err) => write!(f, "{}", err.to_string()),
             Error::NoRows => write!(f, "No rows"),
             Error::UserUnauthorized(id) => write!(f, "User {} is unauthorized", id),
@@ -145,29 +145,24 @@ impl Display for Error {
     }
 }
 
-#[async_trait]
-pub trait TryFromUuid {
-    async fn try_from_uuid(id: Uuid, user: &Uuid) -> Result<Self, Error> where Self: Sized;
+pub trait GetById {
+    fn db_get_by_id(id: &Uuid, conn: &PgConnection) -> Result<Self, Error> where Self: Sized;
 }
 
-#[async_trait]
-pub trait TryFromRow {
-    async fn try_from_row(row: &PgRow<'_>, user: &Uuid) -> Result<Self, Error> where Self: Sized + 'static;
+pub trait GetAll {
+    fn db_get_all(conn: &PgConnection) -> Result<Self, Error> where Self: Sized;
 }
 
-#[async_trait]
-pub trait DBInsertSingle {
-    async fn db_insert(&self, conn: &Connection) -> Result<(), Error>;
+pub trait Insert {
+    fn db_insert(&self, conn: &PgConnection) -> Result<(), Error>;
 }
 
-#[async_trait]
-pub trait DBUpdateSingle {
-    async fn db_update(&self, conn: &Connection) -> Result<(), Error>;
+pub trait Update {
+    fn db_update(&self, conn: &PgConnection) -> Result<(), Error>;
 }
 
-#[async_trait]
-pub trait DBDeleteSingle {
-    async fn db_delete(&self, conn: &Connection) -> Result<(), Error>;
+pub trait Delete {
+    fn db_delete(&self, conn: &PgConnection) -> Result<(), Error>;
 }
 
 // Error codes come from https://www.postgresql.org/docs/10/errcodes-appendix.html

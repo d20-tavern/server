@@ -3,8 +3,6 @@ use crate::spell::CasterType;
 use crate::summary::{Summarize, Summary};
 use crate::Attribute;
 use crate::Links;
-use futures::executor::block_on;
-
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use uuid::Uuid;
@@ -12,46 +10,48 @@ use uuid::Uuid;
 use tavern_db::{TryFromRow, TryFromUuid};
 
 #[derive(Serialize, Deserialize, Summarize)]
-#[cfg_attr(feature = "tavern", derive(TryFromRow, TryFromUuid))]
 pub struct Subclass {
-    #[cfg_attr(feature = "tavern", tavern(skip, default = "Links::new()"))]
     links: Links,
     id: Uuid,
     name: String,
     description: String,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "Summary<Class>",
-        column_name = "class_id",
-    ))]
     parent_class: Summary<Class>,
 
     caster_type: CasterType,
     casting_attr: Attribute,
 
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "Feature",
-        column = "ARRAY(SELECT ROW(feature_id) FROM SubclassFeatures WHERE SubclassFeatures.subclass_id = $1)",
-        is_array,
-    ))]
     features: Vec<Feature>,
 }
 
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Subclasses")]
+#[cfg_attr(feature = "tavern", belongs_to(DBClass, foreign_key = "class_id"))]
+pub struct DBSubclass {
+    id: Uuid,
+    name: String,
+    description: String,
+    class_id: Uuid,
+    caster_type: CasterType,
+    casting_attr: Attribute,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "SubclassFeatures")]
+#[cfg_attr(feature = "tavern", belongs_to(DBSubclass, foreign_key = "subclass_id"))]
+#[cfg_attr(feature = "tavern", belongs_to(DBFeature, foreign_key = "feature_id"))]
+pub struct DBSubclassFeatures {
+    subclass_id: Uuid,
+    feature_id: Uuid,
+}
+
 #[derive(Serialize, Deserialize, Summarize)]
-#[cfg_attr(feature = "tavern", derive(TryFromRow, TryFromUuid))]
 pub struct Class {
-    #[cfg_attr(feature = "tavern", tavern(skip, default = "Links::new()"))]
     links: Links,
     id: Uuid,
     //subclasses: Vec<Subclass>,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "WeaponProficiencies",
-        column = "id"
-    ))]
     weapon_proficiencies: WeaponProficiencies,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "ArmorProficiencies",
-        column = "id"
-    ))]
     armor_proficiencies: ArmorProficiencies,
     name: String,
     description: String,
@@ -62,10 +62,27 @@ pub struct Class {
     skills_attr: Attribute,
 }
 
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(feature = "tavern", derive(TryFromRow, TryFromUuid))]
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Classes")]
+pub struct DBClass {
+    id: Uuid,
+    name: String,
+    description: String,
+    hit_die: String,
+    starting_wealth: String,
+    bab_per_level: f64,
+    skills_per_level: i16,
+    skills_attr: Attribute,
+}
+
+#[derive(Serialize, Deserialize, Summarize)]
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Features")]
 pub struct Feature {
     id: Uuid,
+    name: String,
     description: String,
 }
 
@@ -77,32 +94,39 @@ pub trait Proficiencies<T> {
 }
 
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(feature = "tavern", derive(TryFromRow, TryFromUuid))]
-#[cfg_attr(feature = "tavern", tavern(
-    table_name = "ClassProficientArmorClasses",
-    id_column = "class_id",
-))]
 pub struct ArmorProficiencies {
-    #[cfg_attr(feature = "tavern", tavern(
-        is_set,
-        tuple_hack = "ArmorClass",
-        column_name = "armor_classes",
-    ))]
     classes: BTreeSet<ArmorClass>,
-    #[cfg_attr(feature = "tavern", tavern(
-        is_set,
-        references = "Summary<Armor>",
-        column_name = "prof",
-        column = "ARRAY(SELECT armor_id FROM ClassProficientArmor WHERE ClassProficientArmor.class_id = $1)",
-    ))]
     prof: BTreeSet<Summary<Armor>>,
-    #[cfg_attr(feature = "tavern", tavern(
-        is_set,
-        references = "Summary<Armor>",
-        column_name = "not_prof",
-        column = "ARRAY(SELECT armor_id FROM ClassNotProficientArmor WHERE ClassNotProficientArmor.class_id = $1)",
-    ))]
     not_prof: BTreeSet<Summary<Armor>>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "ClassProficientArmorClasses")]
+#[cfg_attr(feature = "tavern", belongs_to(DBClass, foreign_key = "class_id"))]
+pub struct DBClassProficientArmorClass {
+    class_id: Uuid,
+    armor_classes: Vec<ArmorClass>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "ClassProficientArmor")]
+#[cfg_attr(feature = "tavern", belongs_to(DBClass, foreign_key = "class_id"))]
+#[cfg_attr(feature = "tavern", belongs_to(DBArmor, foreign_key = "armor_id"))]
+pub struct DBClassProficientArmor {
+    class_id: Uuid,
+    armor_id: Uuid,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "ClassProficientArmor")]
+#[cfg_attr(feature = "tavern", belongs_to(DBClass, foreign_key = "class_id"))]
+#[cfg_attr(feature = "tavern", belongs_to(DBArmor, foreign_key = "armor_id"))]
+pub struct DBClassNotProficientArmor {
+    class_id: Uuid,
+    armor_id: Uuid,
 }
 
 impl Proficiencies<Summary<Armor>> for ArmorProficiencies {
@@ -124,32 +148,39 @@ impl Proficiencies<Summary<Armor>> for ArmorProficiencies {
 }
 
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(feature = "tavern", derive(TryFromRow, TryFromUuid))]
-#[cfg_attr(feature = "tavern", tavern(
-    table_name = "ClassProficientWeaponClasses",
-    id_column = "class_id",
-))]
 pub struct WeaponProficiencies {
-    #[cfg_attr(feature = "tavern", tavern(
-        is_set,
-        tuple_hack = "WeaponClass",
-        column_name = "weapon_classes",
-    ))]
     classes: BTreeSet<WeaponClass>,
-    #[cfg_attr(feature = "tavern", tavern(
-        is_set,
-        references = "Summary<Weapon>",
-        column_name = "prof",
-        column = "ARRAY(SELECT weapon_id FROM ClassProficientWeapons WHERE ClassProficientWeapons.class_id = $1)",
-    ))]
     prof: BTreeSet<Summary<Weapon>>,
-    #[cfg_attr(feature = "tavern", tavern(
-        is_set,
-        references = "Summary<Weapon>",
-        column_name = "not_prof",
-        column = "ARRAY(SELECT weapon_id FROM ClassNotProficientWeapons WHERE ClassNotProficientWeapons.class_id = $1)",
-    ))]
     not_prof: BTreeSet<Summary<Weapon>>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "ClassProficientWeaponClasses")]
+#[cfg_attr(feature = "tavern", belongs_to(DBClass, foreign_key = "class_id"))]
+pub struct DBClassProficientWeaponClass {
+    class_id: Uuid,
+    weapon_classes: Vec<WeaponClass>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "ClassProficientWeapons")]
+#[cfg_attr(feature = "tavern", belongs_to(DBClass, foreign_key = "class_id"))]
+#[cfg_attr(feature = "tavern", belongs_to(DBWeapon, foreign_key = "weapon_id"))]
+pub struct DBClassProficientWeapon {
+    class_id: Uuid,
+    weapon_id: Uuid,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "ClassProficientWeapons")]
+#[cfg_attr(feature = "tavern", belongs_to(DBClass, foreign_key = "class_id"))]
+#[cfg_attr(feature = "tavern", belongs_to(DBWeapon, foreign_key = "weapon_id"))]
+pub struct DBClassNotProficientWeapon {
+    class_id: Uuid,
+    weapon_id: Uuid,
 }
 
 impl Proficiencies<Summary<Weapon>> for WeaponProficiencies {

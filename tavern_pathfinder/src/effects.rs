@@ -10,50 +10,75 @@ use uuid::Uuid;
 use tavern_db::{TryFromRow, TryFromUuid};
 
 #[derive(Serialize, Deserialize, Summarize)]
-#[cfg_attr(feature = "tavern", derive(TryFromRow, TryFromUuid))]
 pub struct Effect {
-    #[cfg_attr(feature = "tavern", tavern(
-        skip,
-        default = "Links::new()",
-    ))]
     links: Links,
     id: Uuid,
     name: String,
     #[description]
     short_description: String,
-    #[cfg_attr(feature = "tavern", tavern(is_optional))]
     long_description: Option<String>,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "Attributes",
-        column = "ARRAY(SELECT ROW(attr, modifier) FROM AttributeUnits WHERE AttributeUnits.id == $1)",
-        key_type = "Attribute",
-        val_type = "i16",
-        is_map,
-    ))]
     attr_effects: Attributes,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "Skills",
-        column = "ARRAY(SELECT ROW(attr, modifier) FROM SkillUnits WHERE SkillUnits.id == $1)",
-        key_type = "Skill",
-        val_type = "i16",
-        is_map,
-    ))]
     skill_effects: Skills,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "CharacterStats",
-        column = "ARRAY(SELECT ROW(attr, modifier) FROM CharacterUnits WHERE CharacterUnits.id == $1)",
-        key_type = "CharacterStat",
-        val_type = "i16",
-        is_map,
-    ))]
     char_effects: CharacterStats,
-    #[cfg_attr(feature = "tavern", tavern(
-        references = "CombatStats",
-        column = "ARRAY(SELECT ROW(attr, modifier) FROM CombatUnits WHERE CombatUnits.id == $1)",
-        key_type = "CharacterStat",
-        val_type = "i16",
-        is_map,
-    ))]
     combat_effects: CombatStats,
-    misc_effects: String,
+    misc_effects: Option<String>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Effects")]
+pub struct DBEffect {
+    id: Uuid,
+    name: String,
+    short_description: String,
+    long_description: Option<String>,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "AttributeUnits")]
+#[cfg_attr(feature = "tavern", belongs_to(DBEffect, foreign_key = "effect_id"))]
+pub struct DBEffectAttributeUnits {
+    effect_id: Uuid,
+    attr: Attribute,
+    modifier: i16,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Effects")]
+#[cfg_attr(feature = "tavern", belongs_to(DBEffect, foreign_key = "effect_id"))]
+pub struct DBEffectCharacterUnits {
+    effect_id: Uuid,
+    stat: CharacterStat,
+    modifier: i16,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Effects")]
+#[cfg_attr(feature = "tavern", belongs_to(DBEffect, foreign_key = "effect_id"))]
+pub struct DBEffectCombatUnits {
+    effect_id: Uuid,
+    stat: CombatStat,
+    modifier: i16,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Effects")]
+#[cfg_attr(feature = "tavern", belongs_to(DBEffect, foreign_key = "effect_id"))]
+pub struct DBEffectMiscUnits {
+    effect_id: Uuid,
+    description: String,
+}
+
+#[cfg(feature = "tavern")]
+#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
+#[cfg_attr(feature = "tavern", table_name = "Effects")]
+#[cfg_attr(feature = "tavern", belongs_to(DBEffect, foreign_key = "effect_id"))]
+pub struct DBEffectSkillUnits {
+    effect_id: Uuid,
+    attr: Skill,
+    modifier: i16,
 }

@@ -6,6 +6,7 @@ pub mod config;
 pub mod db;
 pub mod forms;
 pub mod status;
+pub(crate) schema;
 
 /// Generate a warp Filter containing the full server and return it.
 pub fn setup_server() -> BoxedFilter<(impl Reply,)> {
