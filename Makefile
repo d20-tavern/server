@@ -52,8 +52,6 @@ rustup-stable: rustup
 	fi
 
 test: ${RUSTUP_TARGET}
-	${CARGO_COMMAND} test --manifest-path tavern_db/Cargo.toml ${CARGO_TEST_FLAGS}
-	${CARGO_COMMAND} test --manifest-path tavern_pathfinder/Cargo.toml ${CARGO_TEST_FLAGS} tavern
 	${CARGO_COMMAND} test --manifest-path tavern_server/Cargo.toml ${CARGO_TEST_FLAGS}
 
 test-db: export RUST_TEST_THREADS = 1

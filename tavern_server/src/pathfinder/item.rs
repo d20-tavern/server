@@ -1,24 +1,19 @@
-use crate::Links;
 use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::collections::BTreeMap;
+use std::ops::Bound;
 use uuid::Uuid;
 
-use crate::DamageType;
-use crate::EquipmentSlot;
+use super::{DamageType, EquipmentSlot, Links};
+use super::character::{Character, DBCharacter};
+use super::effects::{Effect, DBEffect};
+use super::summary::{Summarize, Summary};
 
-use crate::character::Character;
-use crate::effects::Effect;
-use crate::summary::{Summarize, Summary};
 use tavern_derive::Display;
-#[cfg( feature = "tavern")]
-use tavern_db::{TryFromRow, TryFromUuid};
-#[cfg( feature = "tavern")]
-use crate::effects::DBEffect;
-#[cfg( feature = "tavern")]
-use crate::character::DBCharacter;
-#[cfg(feature = "tavern")]
 use diesel_derive_enum::DbEnum;
+use crate::schema::{armor, bags, items, itemeffects, itemsinbags, materials, weapons};
+use diesel::sql_types::SmallInt;
+use diesel::pg::types::sql_types::Range;
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Item {
@@ -34,10 +29,9 @@ pub struct Item {
     consumed_effects: Vec<Summary<Effect>>,
 }
 
-#[cfg(feature = "tavern")]
-#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
-#[cfg_attr(feature = "tavern", table_name = "Items")]
-#[cfg_attr(feature = "tavern", belongs_to(DBItem, foreign_key = "item_id"))]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "items"]
+#[belongs_to(DBItem, foreign_key = "id")]
 pub struct DBItem {
     id: Uuid,
     name: String,
@@ -45,14 +39,12 @@ pub struct DBItem {
     cost: i32,
     weight: f64,
     equip_slot: Option<EquipmentSlot>,
-    consumed_effects: Vec<Summary<Effect>>,
 }
 
-#[cfg(feature = "tavern")]
-#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
-#[cfg_attr(feature = "tavern", table_name = "Bags")]
-#[cfg_attr(feature = "tavern", belongs_to(DBItem, foreign_key = "item_id"))]
-#[cfg_attr(feature = "tavern", belongs_to(DBEffect, foreign_key = "effect_id"))]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "itemeffects"]
+#[primary_key(item_id, effect_id)]
+#[belongs_to(DBItem, foreign_key = "item_id")]
 pub struct DBItemEffects {
     item_id: Uuid,
     effect_id: Uuid,
@@ -69,7 +61,7 @@ impl Ord for Item {
 
 impl PartialOrd for Item {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        Some(self.cmp(&other))
     }
 }
 
@@ -94,26 +86,21 @@ pub struct Bag {
     description: String,
 }
 
-#[cfg(feature = "tavern")]
-#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
-#[cfg_attr(feature = "tavern", table_name = "Bags")]
-#[cfg_attr(feature = "tavern", belongs_to(DBItem, foreign_key = "item_id"))]
-#[cfg_attr(feature = "tavern", belongs_to(DBCharacter, foreign_key = "character_id"))]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "bags"]
+#[belongs_to(DBCharacter, foreign_key = "char_id")]
 pub struct DBBag {
     id: Uuid,
     name: String,
-    character_id: Uuid,
+    char_id: Uuid,
     item_id: Uuid,
     capacity: i32,
-    #[serde(skip)]
-    description: String,
 }
 
-#[cfg(feature = "tavern")]
-#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
-#[cfg_attr(feature = "tavern", table_name = "ItemsInBags")]
-#[cfg_attr(feature = "tavern", belongs_to(DBItem, foreign_key = "item_id"))]
-#[cfg_attr(feature = "tavern", belongs_to(DBBag, foreign_key = "bag_id"))]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "itemsinbags"]
+#[primary_key(item_id, bag_id)]
+#[belongs_to(DBBag, foreign_key = "bag_id")]
 pub struct DBItemInBag {
     item_id: Uuid,
     bag_id: Uuid,
@@ -130,7 +117,7 @@ impl Bag {
 }
 
 #[derive(Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone)]
-#[cfg_attr(feature = "tavern", derive(DbEnum))]
+#[derive(DbEnum, Debug)]
 pub enum WeaponClass {
     Axes,
     HeavyBlades,
@@ -152,7 +139,7 @@ pub enum WeaponClass {
 }
 
 #[derive(Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone)]
-#[cfg_attr(feature = "tavern", derive(DbEnum))]
+#[derive(DbEnum, Debug)]
 pub enum ArmorClass {
     Light,
     Medium,
@@ -164,23 +151,19 @@ pub struct Weapon {
     #[serde(flatten)]
     item: Item,
     material: Option<Material>,
-    weapon_range: std::ops::Range<i32>,
     crit_range: std::ops::Range<i32>,
     damage: Vec<String>,
     damage_type: Vec<DamageType>,
     weapon_type: WeaponClass,
 }
 
-#[cfg(feature = "tavern")]
-#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
-#[cfg_attr(feature = "tavern", table_name = "Weapons")]
-#[cfg_attr(feature = "tavern", belongs_to(DBItem, foreign_key = "item_id"))]
-#[cfg_attr(feature = "tavern", belongs_to(DBMaterial, foreign_key = "material_id"))]
-struct DBWeapon {
-    item_id: Uuid,
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "weapons"]
+#[belongs_to(DBItem, foreign_key = "id")]
+pub(crate) struct DBWeapon {
+    id: Uuid,
     material_id: Option<Uuid>,
-    weapon_range: std::ops::Range<i32>,
-    crit_range: std::ops::Range<i32>,
+    crit_range: (Bound<i16>, Bound<i16>),
     damage: Vec<String>,
     damage_type: Vec<DamageType>,
     weapon_type: WeaponClass,
@@ -191,8 +174,8 @@ impl Summarize<Weapon> for Weapon {
         &self.item.id
     }
 
-    fn links(&self) -> &Links {
-        &self.item.links
+    fn links(&self) -> Option<&Links> {
+        Some(&self.item.links)
     }
 
     fn name(&self) -> &str {
@@ -216,13 +199,11 @@ pub struct Armor {
     armor_type: ArmorClass,
 }
 
-#[cfg(feature = "tavern")]
-#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
-#[cfg_attr(feature = "tavern", table_name = "Armor")]
-#[cfg_attr(feature = "tavern", belongs_to(DBItem, foreign_key = "item_id"))]
-#[cfg_attr(feature = "tavern", belongs_to(DBMaterial, foreign_key = "material_id"))]
-struct DBArmor {
-    item_id: Uuid,
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "armor"]
+#[belongs_to(DBItem, foreign_key = "id")]
+pub(crate) struct DBArmor {
+    id: Uuid,
     material_id: Option<Uuid>,
     max_dex_bonus: i32,
     ac: i32,
@@ -244,8 +225,8 @@ impl Summarize<Armor> for Armor {
         &self.item.description
     }
 
-    fn links(&self) -> &Links {
-        &self.item.links
+    fn links(&self) -> Option<&Links> {
+        Some(&self.item.links)
     }
 }
 
@@ -259,9 +240,8 @@ pub struct Material {
     hardness: Option<i32>,
 }
 
-#[cfg(feature = "tavern")]
-#[cfg_attr(feature = "tavern", derive(AsChangeSet, Associations, Identifiable, Insertable, Queryable))]
-#[cfg_attr(feature = "tavern", table_name = "Materials")]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "materials"]
 struct DBMaterial {
     id: Uuid,
     name: String,

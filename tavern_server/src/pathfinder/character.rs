@@ -1,137 +1,193 @@
-use async_trait::async_trait;
-use crate::db::{self, TryFromUuid};
-use crate::status;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-#[cfg(test)]
-mod tests {
-	use super::*;
+use super::Links;
+use super::class::{DBSubclass, Subclass, Feature};
+use super::feat::{DBFeat, Feat};
+use super::item::{Bag, DBBag, DBItem, Item};
+use super::religion::{DBDeity, Deity};
+use super::spell::{DBSpell, Spell};
+use super::summary::{Summarize, Summary};
+use super::{Alignment, Gender, Size};
 
-	#[test]
-	fn it_works() {
-	}
+//use tavern_derive::Summarize;
+use crate::schema::{characters, characterequipment, characterfeats, characterfeatures, characterspells, charactersubclasses, races, racesubtypes, racetypes};
+
+#[derive(Serialize, Deserialize, Summarize)]
+pub struct Character {
+    id: Uuid,
+    race: Race,
+    deity: Summary<Deity>,
+    subclasses: Vec<Summary<Subclass>>,
+    feats: Vec<Summary<Feat>>,
+    spells: Vec<Summary<Spell>>,
+    bags: Vec<Summary<Bag>>,
+    equipment: Vec<Summary<Item>>,
+    features: Vec<Summary<Feature>>,
+
+    name: String,
+    age: i16,
+    gender: Gender,
+    alignment: Alignment,
+    backstory: String,
+    height: i16,
+    weight: i16,
+    size: Size,
+
+    strength: i16,
+    dexterity: i16,
+    constitution: i16,
+    intelligence: i16,
+    wisdom: i16,
+    charisma: i16,
+
+    max_hp: i16,
+    damage: i16,
+    nonlethal: i16,
+
+    copper: i16,
+    silver: i16,
+    gold: i16,
+    platinum: i16,
+
+    links: Links,
+    #[serde(skip)]
+    description: String,
 }
 
-impl<'c> FromRow<'c, PgRow<'c>> for Character {
-    fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
-        let id: Uuid = row.try_get("id")?;
-        let race: Uuid = row.try_get("race_id")?;
-        let race = Race::try_from_uuid(race, None)?;
-        let deity: Uuid = row.try_get("deity_id")?;
-        let deity = Summary<Deity>::try_from_uuid(deity, None)?;
-        
-        let name: String = row.try_get("name")?;
-        let age: i16 = row.try_get("age")?;
-        let gender: Gender = row.try_get("gender")?;
-        let alignment: Alignment = row.try_get("alignment")?;
-        let backstory: String = row.try_get("backstory")?;
-        let height: i16 = row.try_get("height")?;
-        let weight: i16 = row.try_get("weight")?;
-        let size: Size = row.try_get("size")?;
-
-        let strength: i16 = row.try_get("strength")?;
-        let dexterity: i16 = row.try_get("dexterity")?;
-        let constitution: i16 = row.try_get("constitution")?;
-        let intelligence: i16 = row.try_get("intelligence")?;
-        let wisdom: i16 = row.try_get("wisdom")?;
-        let charisma: i16 = row.try_get("charisma")?;
-        
-        let max_hp: i16 = row.try_get("max_hp")?;
-        let damage: i16 = row.try_get("damage")?;
-        let nonlethal: i16 = row.try_get("nonlethal")?;
-
-        let copper: i16 = row.try_get("copper")?;
-        let silver: i16 = row.try_get("silver")?;
-        let gold: i16 = row.try_get("gold")?;
-        let platinum: i16 = row.try_get("platinum")?;
-
-        let subclasses = row.try_get("subclasses")?
-            .map(|id| Summary<Subclass>::try_from_uuid(id, None));
-        let feats = row.try_get("feats")?
-            .map(|id| Summary<Feat>::try_from_uuid(id, None)?)
-            .collect();
-        let spells = row.try_get("spells")?
-            .map(|id| Summary<Spell>::try_from_uuid(id, None)?)
-            .collect();
-        let bags = row.try_get("bags")?
-            .map(|id| Bag::try_from_uuid(id, None)?)
-            .collect();
-
-        let mut character = Character {
-            links: Links{},
-            id, race, deity,
-            subclasses, feats, spells, bags,
-            name, age, gender, alignment, backstory, height, weight, size,
-            strength, dexterity, constitution, intelligence, wisdom, charisma,
-            max_hp, damage, nonlethal,
-            copper, silver, gold, platinum,
-            description: String::new(),
-        };
-
-        character.links.insert("self".to_string(), format!("/characters/{}", id));
-        character.update_desc();
-
-        Ok(character)
+impl Character {
+    fn update_desc(&mut self) {
+        let level = self.subclasses.iter().count();
+        self.description = format!("Level {} {} {} {}", level, &self.gender, &self.alignment, &self.race.name);
     }
 }
 
-#[async_trait]
-impl TryFromUuid for Character {
-    type Error = Rejection;
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "characters"]
+pub struct DBCharacter {
+    id: Uuid,
+    user_id: Uuid,
+    race_id: Uuid,
+    deity_id: Option<Uuid>,
 
-    async fn try_from_uuid(id: Uuid, user: Option<&Uuid>) -> Result<Self, Self::Error> {
-        let conn = db::get_connection()?;
-        
-        let mut tx = conn.begin()
-            .await
-            .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+    name: String,
+    age: i16,
+    gender: Gender,
+    alignment: Alignment,
+    backstory: String,
+    height: i16,
+    weight: i16,
+    size: Size,
 
-        // The ARRAY(...) AS column_name syntax allows getting multiple rows in another
-        // table as a single array value that can be accessed as a Vec<>.
-        let query = sqlx::query(
-            r"SELECT
-                id, user_id, race_id, deity_id,
-                name, age, gender, alignment, backstory, height, weight, size,
-                strength, dexterity, constitution, intelligence, wisdom, charisma,
-                max_hp, damage, nonlethal,
-                copper, silver, gold, platinum,
-                ARRAY(SELECT subclass_id FROM CharacterSubclasses WHERE characterSubclasses.char_id = $1) AS subclasses,
-                ARRAY(SELECT feat_id FROM CharacterFeats WHERE CharacterFeats.char_id = $1) AS feats,
-                ARRAY(SELECT id FROM Bags WHERE Bags.char_id = $1) AS bags,
-                ARRAY(SELECT item_id FROM CharacterEquipment WHERE CharacterEquipment.char_id = $1) AS equipment,
-                ARRAY(SELECT spell_id FROM CharacterSpells WHERE CharacterSpells.char_id = $1) AS spells
-                FROM Characters
-                WHERE Characters.id = $1
-                LIMIT 1
-            ")
-            .bind(&id)
-            .bind(&user);
+    strength: i16,
+    dexterity: i16,
+    constitution: i16,
+    intelligence: i16,
+    wisdom: i16,
+    charisma: i16,
 
-        let rows = query.fetch(&mut tx).await.map_err(|err| {
-            status::server_error_into_rejection(err.to_string())
-        })?;
+    max_hp: i16,
+    damage: i16,
+    nonlethal: i16,
 
-        // We only care about a single row
-        let row = rows.next()
-            .await
-            .map_err(|err| status::server_error_into_rejection(err.to_string()))?
-            .ok_or_else()?;
+    copper: i16,
+    silver: i16,
+    gold: i16,
+    platinum: i16,
+}
 
-        // Get the character's user id to make sure the given user has access
-        let char_user: Uuid = row.try_get("user_id")
-            .map_err(status::server_error_into_rejection)?;
-        
-        if user != char_user {
-            return Err(status::not_authorized());
-        }
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "charactersubclasses"]
+#[primary_key(char_id, subclass_id)]
+#[belongs_to(DBCharacter, foreign_key = "char_id")]
+pub struct DBCharacterSubclass {
+    char_id: Uuid,
+    subclass_id: Uuid,
+    levels_taken: i16,
+    hp_taken: i16,
+    skills_taken: i16,
+}
 
-        // The user has access; generate the character
-        let character = Character::from_row(&row)
-            .map_err(status::server_error_into_rejection)?;
+#[derive(Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "characterfeats"]
+#[primary_key(char_id, feat_id)]
+#[belongs_to(DBCharacter, foreign_key = "char_id")]
+pub struct DBCharacterFeat {
+    char_id: Uuid,
+    feat_id: Uuid,
+}
 
-        tx.commit()
-            .await
-            .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+#[derive(Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "characterfeatures"]
+#[primary_key(char_id, feature_id)]
+#[belongs_to(DBCharacter, foreign_key = "char_id")]
+pub struct DBCharacterFeature {
+    char_id: Uuid,
+    feature_id: Uuid,
+}
 
-        Ok(character)
-    }
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "characterspells"]
+#[primary_key(char_id, spell_id)]
+#[belongs_to(DBCharacter, foreign_key = "char_id")]
+pub struct DBCharacterSpell {
+    char_id: Uuid,
+    spell_id: Uuid,
+    casts_remaining: i16,
+}
+
+#[derive(Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "characterequipment"]
+#[primary_key(char_id, item_id)]
+#[belongs_to(DBCharacter, foreign_key = "char_id")]
+pub struct DBCharacterEquipment {
+    char_id: Uuid,
+    item_id: Uuid,
+}
+
+// TODO: I think this can be implemented better
+
+#[derive(Serialize, Deserialize, Summarize)]
+pub struct Race {
+    id: Uuid,
+    links: Links,
+    main_type: RaceType,
+    sub_type: RaceSubtype,
+    name: String,
+    description: String,
+    move_speed: i16,
+    size: Size,
+    languages: Vec<String>,
+}
+
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "races"]
+pub struct DBRace {
+    id: Uuid,
+    type_id: Uuid,
+    subtype_id: Uuid,
+    name: String,
+    description: String,
+    move_speed: i16,
+    size: Size,
+    languages: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "racetypes"]
+pub struct RaceType {
+    id: Uuid,
+    name: String,
+    hit_die: String,
+    bab_per_hit_die: f32,
+}
+
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[table_name = "racesubtypes"]
+#[derive(Serialize, Deserialize)]
+pub struct RaceSubtype {
+    id: Uuid,
+    name: String,
+    description: String,
 }

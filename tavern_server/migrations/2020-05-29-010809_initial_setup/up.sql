@@ -207,7 +207,7 @@ CREATE TABLE Users (
     id          UUID    PRIMARY KEY,
     email       TEXT    CONSTRAINT user_email_required    NOT NULL CONSTRAINT user_email_unique    UNIQUE,
     username    TEXT    CONSTRAINT user_username_required NOT NULL CONSTRAINT user_username_unique UNIQUE,
-    is_admin    BOOLEAN DEFAULT false,
+    is_admin    BOOLEAN NOT NULL DEFAULT false,
     pass_hash   BYTEA   NOT NULL,
     salt        BYTEA   NOT NULL,
     time_cost   INT     NOT NULL CHECK (time_cost > 0),
@@ -465,6 +465,7 @@ CREATE TABLE ClassNotProficientWeapons (
 
 CREATE TABLE Bags (
     id          UUID    PRIMARY KEY,
+    name        TEXT    NOT NULL,
     char_id     UUID    REFERENCES Characters(id) NOT NULL,
     item_id     UUID    REFERENCES Items(id) NOT NULL,
     capacity    INT     NOT NULL CHECK (capacity > 0)
@@ -488,13 +489,13 @@ CREATE TABLE Spells (
     id                  UUID            PRIMARY KEY,
     name                TEXT            NOT NULL,
     level               SMALLINT        NOT NULL CHECK (level >= 0),
-    school              magic_school     NOT NULL,
+    school              magic_school    NOT NULL,
     casting_time        BIGINT          NOT NULL CHECK (casting_time >= 0),
-    range               spell_range      NOT NULL,
+    range               spell_range     NOT NULL,
     area                TEXT            NOT NULL,
     duration_per_level  BIGINT          NOT NULL CHECK (duration_per_level > 0),
     saving_throw        save_throw,
-    spell_resistance    BOOLEAN         DEFAULT false,
+    spell_resistance    BOOLEAN         NOT NULL DEFAULT false,
     description         TEXT            NOT NULL
 );
 

@@ -1,0 +1,276 @@
+--- src/schema.rs	2020-05-30 18:11:53.992409574 -0700
++++ schema.rs	2020-05-30 18:11:17.564965097 -0700
+@@ -1,5 +1,6 @@
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::item::ArmorClassMapping;
+ 
+     armor (id) {
+         id -> Uuid,
+@@ -8,26 +9,28 @@
+         ac -> Int4,
+         spell_failure -> Int4,
+         check_penalty -> Int4,
+-        armor_type -> Armor_class,
++        armor_type -> ArmorClassMapping,
+     }
+ }
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::AttributeMapping;
+ 
+     attributefeatunits (feat_id, attr) {
+         feat_id -> Uuid,
+-        attr -> Attribute,
++        attr -> AttributeMapping,
+         score -> Int2,
+     }
+ }
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::AttributeMapping;
+ 
+     attributeunits (effect_id, attr) {
+         effect_id -> Uuid,
+-        attr -> Attribute,
++        attr -> AttributeMapping,
+         modifier -> Int2,
+     }
+ }
+@@ -46,6 +49,7 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    
+ 
+     characterequipment (char_id, item_id) {
+         char_id -> Uuid,
+@@ -73,6 +77,7 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::{AlignmentMapping, GenderMapping, SizeMapping};
+ 
+     characters (id) {
+         id -> Uuid,
+@@ -81,12 +86,12 @@
+         deity_id -> Nullable<Uuid>,
+         name -> Text,
+         age -> Int2,
+-        gender -> Gender,
+-        alignment -> Alignment,
++        gender -> GenderMapping,
++        alignment -> AlignmentMapping,
+         backstory -> Nullable<Text>,
+         height -> Nullable<Int2>,
+         weight -> Nullable<Int2>,
+-        size -> Size,
++        size -> SizeMapping,
+         strength -> Int2,
+         dexterity -> Int2,
+         constitution -> Int2,
+@@ -127,10 +132,11 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::CharacterStatMapping;
+ 
+     characterunits (effect_id, stat) {
+         effect_id -> Uuid,
+-        stat -> Character_stat,
++        stat -> CharacterStatMapping,
+         modifier -> Int2,
+     }
+ }
+@@ -146,6 +152,7 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::AttributeMapping;
+ 
+     classes (id) {
+         id -> Uuid,
+@@ -155,7 +162,7 @@
+         starting_wealth -> Text,
+         bab_per_level -> Float8,
+         skills_per_level -> Int2,
+-        skills_attr -> Attribute,
++        skills_attr -> AttributeMapping,
+     }
+ }
+ 
+@@ -207,19 +214,21 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::item::ArmorClassMapping;
+ 
+     classproficientarmorclasses (class_id) {
+         class_id -> Uuid,
+-        armor_classes -> Array<Armor_class>,
++        armor_classes -> Array<ArmorClassMapping>,
+     }
+ }
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::item::WeaponClassMapping;
+ 
+     classproficientweaponclasses (class_id) {
+         class_id -> Uuid,
+-        weapon_classes -> Array<Weapon_class>,
++        weapon_classes -> Array<WeaponClassMapping>,
+     }
+ }
+ 
+@@ -234,10 +243,11 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::CombatStatMapping;
+ 
+     combatunits (effect_id, stat) {
+         effect_id -> Uuid,
+-        stat -> Combat_stat,
++        stat -> CombatStatMapping,
+         modifier -> Int2,
+     }
+ }
+@@ -372,6 +382,7 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::EquipmentSlotMapping;
+ 
+     items (id) {
+         id -> Uuid,
+@@ -379,7 +390,7 @@
+         description -> Nullable<Text>,
+         cost -> Int4,
+         weight -> Float8,
+-        equip_slot -> Nullable<Equipment_slot>,
++        equip_slot -> Nullable<EquipmentSlotMapping>,
+     }
+ }
+ 
+@@ -434,6 +445,7 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::SizeMapping;
+ 
+     races (id) {
+         id -> Uuid,
+@@ -442,7 +454,7 @@
+         subtype_id -> Nullable<Uuid>,
+         name -> Text,
+         move_speed -> Int2,
+-        size -> Size,
++        size -> SizeMapping,
+         languages -> Nullable<Array<Text>>,
+     }
+ }
+@@ -497,33 +509,36 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::SkillMapping;
+ 
+     skillfeatunits (feat_id, skill) {
+         feat_id -> Uuid,
+-        skill -> Skill,
++        skill -> SkillMapping,
+         ranks -> Int2,
+     }
+ }
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::SkillMapping;
+ 
+     skillunits (effect_id, skill) {
+         effect_id -> Uuid,
+-        skill -> Skill,
++        skill -> SkillMapping,
+         modifier -> Int2,
+     }
+ }
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::spell::ComponentTypeMapping;
+ 
+     spellcomponents (id) {
+         id -> Uuid,
+         spell_id -> Uuid,
+         item_id -> Nullable<Uuid>,
+         item_amount -> Nullable<Int2>,
+-        component_type -> Component_type,
++        component_type -> ComponentTypeMapping,
+     }
+ }
+ 
+@@ -538,17 +553,20 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::SaveThrowMapping;
++    use crate::pathfinder::spell::MagicSchoolMapping;
++    use crate::pathfinder::spell::SpellRangeMapping;
+ 
+     spells (id) {
+         id -> Uuid,
+         name -> Text,
+         level -> Int2,
+-        school -> Magic_school,
++        school -> MagicSchoolMapping,
+         casting_time -> Int8,
+-        range -> Spell_range,
++        range -> SpellRangeMapping,
+         area -> Text,
+         duration_per_level -> Int8,
+-        saving_throw -> Nullable<Save_throw>,
++        saving_throw -> Nullable<SaveThrowMapping>,
+         spell_resistance -> Bool,
+         description -> Text,
+     }
+@@ -556,14 +574,16 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::AttributeMapping;
++    use crate::pathfinder::spell::CasterTypeMapping;
+ 
+     subclasses (id) {
+         id -> Uuid,
+         name -> Text,
+         description -> Text,
+         class_id -> Uuid,
+-        caster_type -> Nullable<Caster_type>,
+-        casting_attr -> Nullable<Attribute>,
++        caster_type -> Nullable<CasterTypeMapping>,
++        casting_attr -> Nullable<AttributeMapping>,
+     }
+ }
+ 
+@@ -616,14 +636,16 @@
+ 
+ table! {
+     use diesel::sql_types::*;
++    use crate::pathfinder::DamageTypeMapping;
++    use crate::pathfinder::item::WeaponClassMapping;
+ 
+     weapons (id) {
+         id -> Uuid,
+         material_id -> Nullable<Uuid>,
+         crit_range -> Int4range,
+         damage -> Array<Text>,
+-        damage_type -> Array<Damage_type>,
+-        weapon_type -> Weapon_class,
++        damage_type -> Array<DamageTypeMapping>,
++        weapon_type -> WeaponClassMapping,
+     }
+ }
+ 

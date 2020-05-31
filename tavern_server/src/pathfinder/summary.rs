@@ -1,12 +1,7 @@
-use async_trait::async_trait;
-use crate::Links;
+use super::Links;
 use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::marker::PhantomData;
-#[cfg(feature = "tavern")]
-use sqlx::postgres::PgRow;
-#[cfg(feature = "tavern")]
-use tavern_db::{self, TryFromRow, TryFromUuid};
 pub use tavern_derive::Summarize;
 use uuid::Uuid;
 
@@ -76,24 +71,6 @@ impl<T> Summarize<T> for Summary<T> {
 
     fn description(&self) -> &str {
         &self.description
-    }
-}
-
-#[cfg(feature = "tavern")]
-#[async_trait]
-impl<T: TryFromRow + Summarize<T> + 'static> TryFromRow for Summary<T> {
-    async fn try_from_row(row: &PgRow<'_>, user: &Uuid) -> Result<Self, tavern_db::Error> {
-        let not_summary = T::try_from_row(row, user).await?;
-        Ok(Self::from(&not_summary))
-    }
-}
-
-#[cfg(feature = "tavern")]
-#[async_trait]
-impl<T: TryFromUuid + Summarize<T> + 'static> TryFromUuid for Summary<T> {
-    async fn try_from_uuid(id: Uuid, user: &Uuid) -> Result<Self, tavern_db::Error> {
-        let not_summary = T::try_from_uuid(id, user).await?;
-        Ok(Self::from(&not_summary))
     }
 }
 

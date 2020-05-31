@@ -41,21 +41,21 @@ pub fn db_test(_args: TokenStream, item: TokenStream) -> TokenStream {
         #(#attrs)*
         #asyncness #vis fn #name() #ret {
             use sqlx::Connection;
-            let conn = tavern_db::get_connection().await
+            let conn = crate::db::get_connection().await
                 .expect("database reset failed");
             let mut tx = conn.begin().await
-                .map_err(|err| tavern_db::Error::Transaction(err))
+                .map_err(|err| crate::db::Error::Transaction(err))
                 .expect("database reset failed");
             sqlx::query(r"DROP SCHEMA IF EXISTS tavern CASCADE")
                 .execute(&mut tx)
                 .await
-                .map_err(|err| tavern_db::Error::RunQuery(err))
+                .map_err(|err| crate::db::Error::RunQuery(err))
                 .expect("database reset failed");
             tx.commit().await
-                .map_err(|err| tavern_db::Error::Transaction(err))
+                .map_err(|err| crate::db::Error::Transaction(err))
                 .expect("database reset failed");
 
-            tavern_db::init()
+            crate::db::init()
                 .await
                 .expect("database initialization failed");
 
@@ -114,11 +114,11 @@ pub fn derive_summarize(item: TokenStream) -> TokenStream {
         let desc = field_from_iter(named.named.pairs(), "description")
                     .unwrap_or_else(|| panic!("auto creation of Summary type for {} requires field 'short_description' or 'description'", name));
         let links = field_from_iter(named.named.pairs(), "links")
-            .map(|id| quote!{ self.#id.as_ref() })
+            .map(|id| quote!{ Some(&self.#id) })
             .unwrap_or_else(|| quote!{ None });
 
         quote! {
-            impl crate::summary::Summarize<#name> for #name {
+            impl crate::pathfinder::summary::Summarize<#name> for #name {
                 fn id(&self) -> &uuid::Uuid {
                     &self.#id
                 }
@@ -131,7 +131,7 @@ pub fn derive_summarize(item: TokenStream) -> TokenStream {
                     &self.#desc
                 }
 
-                fn links(&self) -> Option<&crate::Links> {
+                fn links(&self) -> Option<&crate::pathfinder::Links> {
                     #links
                 }
             }
@@ -184,7 +184,7 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(GetById, attributes(tavern))]
+#[proc_macro_derive(GetById, attributes(table_name, tavern))]
 pub fn derive_get_by_id(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -195,7 +195,7 @@ pub fn derive_get_by_id(input: TokenStream) -> TokenStream {
     let table = attrs.table.ok_or_else(||
         compile_error_args!(
             name.span(),
-            "tavern(table) attribute expect to map to object under tavern_db::schemas"
+            "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
     );
     let table = match table {
@@ -205,11 +205,15 @@ pub fn derive_get_by_id(input: TokenStream) -> TokenStream {
     let id_field = attrs.id_field;
 
     let result = quote! {
-        impl tavern_db::GetById for #name {
-            fn db_get_by_id(by_id: &uuid:Uuid, conn: &diesel::pg::PgConnection) -> Result<Self, tavern_db::Error> {
+        impl crate::db::GetById for #name {
+            fn db_get_by_id(by_id: &uuid::Uuid, conn: &crate::db::Connection) -> Result<Self, crate::db::Error> {
+                use crate::schema::#table::dsl::*;
+                use crate::diesel::ExpressionMethods;
+                use crate::diesel::RunQueryDsl;
+                use crate::diesel::QueryDsl;
                 #table.filter(#id_field.eq(by_id))
                     .first::<#name>(conn)
-                    .map_err(tavern_db::Error::RunQuery)?;
+                    .map_err(crate::db::Error::RunQuery)
             }
         }
     };
@@ -217,7 +221,7 @@ pub fn derive_get_by_id(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(GetAll, attributes(tavern))]
+#[proc_macro_derive(GetAll, attributes(table_name, tavern))]
 pub fn derive_get_all(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -228,7 +232,7 @@ pub fn derive_get_all(input: TokenStream) -> TokenStream {
     let table = attrs.table.ok_or_else(||
         compile_error_args!(
             name.span(),
-            "tavern(table) attribute expect to map to object under tavern_db::schemas"
+            "tavern(table) attribute expected, maps to object under crate::db::schemas"
         )
     );
     let table = match table {
@@ -237,11 +241,15 @@ pub fn derive_get_all(input: TokenStream) -> TokenStream {
     };
 
     let result = quote! {
-        impl tavern_db::GetAll for #name {
-            fn db_get_all(conn: &diesel::pg::PgConnection) -> Result<Vec<Self>, tavern_db::Error> {
+        impl crate::db::GetAll for #name {
+            fn db_get_all(conn: &crate::db::Connection) -> Result<Vec<Self>, crate::db::Error> {
+                use crate::schema::#table::dsl::*;
+                use crate::diesel::ExpressionMethods;
+                use crate::diesel::RunQueryDsl;
+                use crate::diesel::QueryDsl;
                 #table
                     .load::<#name>(conn)
-                    .map_err(tavern_db::Error::RunQuery)
+                    .map_err(crate::db::Error::RunQuery)
             }
         }
     };
@@ -249,7 +257,7 @@ pub fn derive_get_all(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(Insert, attributes(tavern))]
+#[proc_macro_derive(Insert, attributes(table_name, tavern))]
 pub fn derive_insert(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -260,7 +268,7 @@ pub fn derive_insert(input: TokenStream) -> TokenStream {
     let table = attrs.table.ok_or_else(||
         compile_error_args!(
             name.span(),
-            "tavern(table) attribute expect to map to object under tavern_db::schemas"
+            "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
     );
     let table = match table {
@@ -269,12 +277,16 @@ pub fn derive_insert(input: TokenStream) -> TokenStream {
     };
 
     let result = quote! {
-        impl tavern_db::Insert for #name {
-            fn db_insert(&self, conn: &diesel::pg::PgConnection) -> Result<(), tavern_db::Error> {
-                diesel::insert_into(#table::table)
+        impl crate::db::Insert for #name {
+            fn db_insert(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                use crate::schema::#table::dsl::*;
+                use crate::diesel::ExpressionMethods;
+                use crate::diesel::RunQueryDsl;
+                use crate::diesel::QueryDsl;
+                diesel::insert_into(#table)
                     .values(self)
                     .execute(conn)
-                    .map_err(tavern_db::Error::RunQuery)
+                    .map_err(crate::db::Error::RunQuery)
                     .map(|_| ())
             }
         }
@@ -283,7 +295,7 @@ pub fn derive_insert(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(Update, attributes(tavern))]
+#[proc_macro_derive(Update, attributes(table_name, tavern))]
 pub fn derive_update(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -294,7 +306,7 @@ pub fn derive_update(input: TokenStream) -> TokenStream {
     let table = attrs.table.ok_or_else(||
         compile_error_args!(
             name.span(),
-            "tavern(table) attribute expect to map to object under tavern_db::schemas"
+            "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
     );
     let table = match table {
@@ -304,12 +316,16 @@ pub fn derive_update(input: TokenStream) -> TokenStream {
     let id_field = attrs.id_field;
 
     let result = quote! {
-        impl tavern_db::Update for #name {
-            fn db_update(&self, conn: &diesel::pg::PgConnection) -> Result<(), tavern_db::Error> {
+        impl crate::db::Update for #name {
+            fn db_update(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                use crate::schema::#table::dsl::*;
+                use crate::diesel::ExpressionMethods;
+                use crate::diesel::RunQueryDsl;
+                use crate::diesel::QueryDsl;
                 diesel::update(#table.filter(#id_field.eq(&self.id)))
                     .set(self)
                     .execute(conn)
-                    .map_err(tavern_db::Error::RunQuery)
+                    .map_err(crate::db::Error::RunQuery)
                     .map(|_| ())
             }
         }
@@ -318,7 +334,7 @@ pub fn derive_update(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(Delete, attributes(tavern))]
+#[proc_macro_derive(Delete, attributes(table_name, tavern))]
 pub fn derive_delete(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -329,7 +345,7 @@ pub fn derive_delete(input: TokenStream) -> TokenStream {
     let table = attrs.table.ok_or_else(||
         compile_error_args!(
             name.span(),
-            "tavern(table) attribute expect to map to object under tavern_db::schemas"
+            "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
     );
     let table = match table {
@@ -339,11 +355,15 @@ pub fn derive_delete(input: TokenStream) -> TokenStream {
     let id_field = attrs.id_field;
 
     let result = quote! {
-        impl tavern_db::Delete for #name {
-            fn db_delete(&self, conn: &diesel::pg::PgConnection) -> Result<Vec<Self>, tavern_db::Error> {
-                diesel::delete(#table.filter(#id_field.eq(&self.id)))
+        impl crate::db::Delete for #name {
+            fn db_delete(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                use crate::schema::#table::dsl::*;
+                use crate::diesel::ExpressionMethods;
+                use crate::diesel::RunQueryDsl;
+                use crate::diesel::QueryDsl;
+                diesel::delete(#table.filter(#id_field.eq(&self.#id_field)))
                     .execute(conn)
-                    .map_err(tavern_db::Error::RunQuery)
+                    .map_err(crate::db::Error::RunQuery)
                     .map(|_| ())
             }
         }

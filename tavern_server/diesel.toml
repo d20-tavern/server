@@ -4,4 +4,5 @@
 [print_schema]
 file = "src/schema.rs"
 # Regenerate whenever schema is changed
-#patch_file = "src/schema.patch"
+patch_file = "src/schema.patch"
+import_types = ["diesel::sql_types::*"]
