@@ -1,16 +1,16 @@
 use crate::status;
-use warp::filters::BoxedFilter;
-use warp::{Filter, Rejection};
-use diesel::r2d2::{Pool, PooledConnection, ConnectionManager};
-use uuid::Uuid;
+use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::result;
 use lazy_static::lazy_static;
 use std::fmt::{self, Display};
 use std::sync::Arc;
 use structopt::StructOpt;
-use tokio::sync::RwLock;
 pub use tavern_derive::*;
-use diesel::prelude::*;
-use diesel::result;
+use tokio::sync::RwLock;
+use uuid::Uuid;
+use warp::filters::BoxedFilter;
+use warp::{Filter, Rejection};
 
 #[cfg(test)]
 mod tests {
@@ -24,7 +24,7 @@ mod tests {
             database: String::from("test"),
             user: String::from("foo"),
             pass: String::from("bar"),
-            max_connections: 5
+            max_connections: 5,
         };
 
         let conn_string = ps_opt.to_string();
@@ -52,8 +52,7 @@ embed_migrations!();
 
 pub async fn init() -> Result<(), Error> {
     let mut conn = get_connection().await?;
-    embedded_migrations::run(&conn)
-        .map_err(Error::Migration)
+    embedded_migrations::run(&conn).map_err(Error::Migration)
 }
 
 async fn get_filter_connection() -> Result<Connection, Rejection> {
@@ -69,41 +68,41 @@ pub fn conn_filter() -> BoxedFilter<(Connection,)> {
 #[derive(StructOpt, Clone, Debug)]
 pub struct PostgreSQLOpt {
     #[structopt(
-    long = "db-host",
-    env = "TAVERN_DB_HOST",
-    help = "the domain name or IP address of the database host"
+        long = "db-host",
+        env = "TAVERN_DB_HOST",
+        help = "the domain name or IP address of the database host"
     )]
     host: String,
     #[structopt(
-    long = "db-port",
-    env = "TAVERN_DB_PORT",
-    default_value = "5432",
-    help = "the port PostgreSQL is listening to on the host"
+        long = "db-port",
+        env = "TAVERN_DB_PORT",
+        default_value = "5432",
+        help = "the port PostgreSQL is listening to on the host"
     )]
     port: u16,
     #[structopt(
-    long = "db-name",
-    env = "TAVERN_DB_NAME",
-    help = "the name of the database Tavern will use"
+        long = "db-name",
+        env = "TAVERN_DB_NAME",
+        help = "the name of the database Tavern will use"
     )]
     database: String,
     #[structopt(
-    long = "db-user",
-    env = "TAVERN_DB_USER",
-    help = "the username for the database"
+        long = "db-user",
+        env = "TAVERN_DB_USER",
+        help = "the username for the database"
     )]
     user: String,
     #[structopt(
-    long = "db-pass",
-    env = "TAVERN_DB_PASS",
-    help = "the password for the database user"
+        long = "db-pass",
+        env = "TAVERN_DB_PASS",
+        help = "the password for the database user"
     )]
     pass: String,
     #[structopt(
-    long = "db-max-conn",
-    env = "TAVERN_DB_MAX_CONNECTIONS",
-    help = "the maximum number of database connections",
-    default_value = "10",
+        long = "db-max-conn",
+        env = "TAVERN_DB_MAX_CONNECTIONS",
+        help = "the maximum number of database connections",
+        default_value = "10"
     )]
     max_connections: u32,
 }
@@ -132,11 +131,7 @@ impl fmt::Display for PostgreSQLOpt {
 }
 
 pub async fn get_connection() -> Result<Connection, Error> {
-    (*POOL)
-        .read()
-        .await
-        .get()
-        .map_err(Error::Connection)
+    (*POOL).read().await.get().map_err(Error::Connection)
 }
 
 #[derive(Debug)]
@@ -161,11 +156,15 @@ impl Display for Error {
 }
 
 pub trait GetById {
-    fn db_get_by_id(id: &Uuid, conn: &crate::db::Connection) -> Result<Self, Error> where Self: Sized;
+    fn db_get_by_id(id: &Uuid, conn: &crate::db::Connection) -> Result<Self, Error>
+    where
+        Self: Sized;
 }
 
 pub trait GetAll {
-    fn db_get_all(conn: &crate::db::Connection) -> Result<Vec<Self>, Error> where Self: Sized;
+    fn db_get_all(conn: &crate::db::Connection) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized;
 }
 
 pub trait Insert {

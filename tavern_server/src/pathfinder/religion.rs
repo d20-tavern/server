@@ -2,9 +2,9 @@ use super::item::Weapon;
 use super::spell::Spell;
 use super::summary::Summarize;
 use super::Links;
+use crate::schema::{deities, deitydomains, deityweapons, domains, subdomains};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::schema::{deities, deitydomains, deityweapons, domains, subdomains};
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Deity {

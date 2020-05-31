@@ -5,10 +5,10 @@ use uuid::Uuid;
 use super::summary::{Summarize, Summary};
 use super::{Attributes, Skills};
 
-use super::{Attribute, Skill};
 use super::effects::{DBEffect, Effect};
+use super::{Attribute, Skill};
 
-use crate::schema::{attributefeatunits, feats, feateffects, featrequirements, skillfeatunits};
+use crate::schema::{attributefeatunits, feateffects, featrequirements, feats, skillfeatunits};
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Feat {

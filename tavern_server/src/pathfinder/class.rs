@@ -8,7 +8,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use uuid::Uuid;
 
-use crate::schema::{classes, classnotproficientarmor, classproficientarmor, classproficientarmorclasses, classnotproficientweapons, classproficientweaponclasses, classproficientweapons, features, subclasses, subclassfeatures};
+use crate::schema::{
+    classes, classnotproficientarmor, classnotproficientweapons, classproficientarmor,
+    classproficientarmorclasses, classproficientweaponclasses, classproficientweapons, features,
+    subclasses, subclassfeatures,
+};
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Subclass {
@@ -23,7 +27,6 @@ pub struct Subclass {
 
     features: Vec<Feature>,
 }
-
 
 #[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
 #[table_name = "subclasses"]
@@ -75,8 +78,16 @@ pub struct DBClass {
     skills_attr: Attribute,
 }
 
-#[derive(Serialize, Deserialize, Summarize)]
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Summarize,
+    AsChangeset,
+    Associations,
+    Identifiable,
+    Insertable,
+    Queryable,
+)]
 #[table_name = "features"]
 pub struct Feature {
     id: Uuid,

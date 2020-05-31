@@ -1,17 +1,20 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::Links;
-use super::class::{DBSubclass, Subclass, Feature};
+use super::class::{DBSubclass, Feature, Subclass};
 use super::feat::{DBFeat, Feat};
 use super::item::{Bag, DBBag, DBItem, Item};
 use super::religion::{DBDeity, Deity};
 use super::spell::{DBSpell, Spell};
 use super::summary::{Summarize, Summary};
+use super::Links;
 use super::{Alignment, Gender, Size};
 
 //use tavern_derive::Summarize;
-use crate::schema::{characters, characterequipment, characterfeats, characterfeatures, characterspells, charactersubclasses, races, racesubtypes, racetypes};
+use crate::schema::{
+    characterequipment, characterfeats, characterfeatures, characters, characterspells,
+    charactersubclasses, races, racesubtypes, racetypes,
+};
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Character {
@@ -58,7 +61,10 @@ pub struct Character {
 impl Character {
     fn update_desc(&mut self) {
         let level = self.subclasses.iter().count();
-        self.description = format!("Level {} {} {} {}", level, &self.gender, &self.alignment, &self.race.name);
+        self.description = format!(
+            "Level {} {} {} {}",
+            level, &self.gender, &self.alignment, &self.race.name
+        );
     }
 }
 
@@ -173,8 +179,7 @@ pub struct DBRace {
     languages: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[derive(Serialize, Deserialize, AsChangeset, Associations, Identifiable, Insertable, Queryable)]
 #[table_name = "racetypes"]
 pub struct RaceType {
     id: Uuid,

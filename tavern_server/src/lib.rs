@@ -9,9 +9,9 @@ pub mod auth;
 pub mod config;
 pub mod db;
 pub mod forms;
-pub mod status;
 pub mod pathfinder;
 mod schema;
+pub mod status;
 
 /// Generate a warp Filter containing the full server and return it.
 pub fn setup_server() -> BoxedFilter<(impl Reply,)> {

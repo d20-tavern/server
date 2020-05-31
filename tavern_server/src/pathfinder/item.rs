@@ -4,16 +4,16 @@ use std::collections::BTreeMap;
 use std::ops::Bound;
 use uuid::Uuid;
 
-use super::{DamageType, EquipmentSlot, Links};
 use super::character::{Character, DBCharacter};
-use super::effects::{Effect, DBEffect};
+use super::effects::{DBEffect, Effect};
 use super::summary::{Summarize, Summary};
+use super::{DamageType, EquipmentSlot, Links};
 
-use tavern_derive::Display;
-use diesel_derive_enum::DbEnum;
-use crate::schema::{armor, bags, items, itemeffects, itemsinbags, materials, weapons};
-use diesel::sql_types::SmallInt;
+use crate::schema::{armor, bags, itemeffects, items, itemsinbags, materials, weapons};
 use diesel::pg::types::sql_types::Range;
+use diesel::sql_types::SmallInt;
+use diesel_derive_enum::DbEnum;
+use tavern_derive::Display;
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Item {
@@ -109,15 +109,14 @@ pub struct DBItemInBag {
 
 impl Bag {
     fn update_desc(&mut self) {
-        let size: i32 = self.contents.iter()
-            .map(|(_, count)| count)
-            .sum();
+        let size: i32 = self.contents.iter().map(|(_, count)| count).sum();
         self.description = format!("{} {}/{}", self.name, size, self.capacity);
     }
 }
 
-#[derive(Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone)]
-#[derive(DbEnum, Debug)]
+#[derive(
+    Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, DbEnum, Debug,
+)]
 pub enum WeaponClass {
     Axes,
     HeavyBlades,
@@ -138,8 +137,9 @@ pub enum WeaponClass {
     Tribal,
 }
 
-#[derive(Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone)]
-#[derive(DbEnum, Debug)]
+#[derive(
+    Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, DbEnum, Debug,
+)]
 pub enum ArmorClass {
     Light,
     Medium,

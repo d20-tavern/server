@@ -1,4 +1,3 @@
-
 // TODO: For Rust 1.45, replace call_site with mixed_site
 macro_rules! compile_error_args {
     ($msg:expr) => {

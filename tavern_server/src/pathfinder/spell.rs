@@ -4,16 +4,16 @@ use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use uuid::Uuid;
 
-use super::{Links, SaveThrow};
-use super::effects::{Effect, DBEffect};
+use super::effects::{DBEffect, Effect};
 use super::item::{DBItem, Item};
 use super::summary::{Summarize, Summary};
-use crate::schema::{spells, spelleffects, spellcomponents};
+use super::{Links, SaveThrow};
+use crate::schema::{spellcomponents, spelleffects, spells};
 
-use crate::db::{GetAll, GetById, Insert, Update, Delete, Error, Connection};
-use diesel_derive_enum::DbEnum;
-use diesel::prelude::*;
 use crate::db;
+use crate::db::{Connection, Delete, Error, GetAll, GetById, Insert, Update};
+use diesel::prelude::*;
+use diesel_derive_enum::DbEnum;
 
 #[derive(Serialize, Deserialize, Summarize)]
 pub struct Spell {
@@ -40,7 +40,8 @@ impl TryFrom<(DBSpell, &Connection)> for Spell {
         let spell_effects = DBSpellEffect::belonging_to(&db_spell)
             .load::<DBSpellEffect>(conn)
             .map_err(Error::RunQuery)?;
-        let effects = spell_effects.into_iter()
+        let effects = spell_effects
+            .into_iter()
             .map(|spell_effect| Summary::<Effect>::db_get_by_id(spell_effect.effect_id, conn))
             .collect()
             .map_err(Error::RunQuery)?;
@@ -48,11 +49,12 @@ impl TryFrom<(DBSpell, &Connection)> for Spell {
         let spell_components = DBSpellComponent::belonging_to(&db_spell)
             .load::<DBSpellComponent>(conn)
             .map_err(Error::RunQuery)?;
-        let components = spell_components.into_iter()
+        let components = spell_components
+            .into_iter()
             .map(|spell_component| SpellComponent::db_get_by_id(spell_component.item_id, conn))
             .collect()
             .map_err(Error::RunQuery)?;
-        
+
         let spell = Spell {
             links: Default::default(),
             id: db_spell.id,
@@ -77,7 +79,8 @@ impl TryFrom<(DBSpell, &Connection)> for Spell {
 impl GetAll for Spell {
     fn db_get_all(conn: &Connection) -> Result<Vec<Self>, Error> {
         let db_spells = DBSpell::db_get_all(conn)?;
-        db_spells.into_iter()
+        db_spells
+            .into_iter()
             .map(|db_spell| Spell::try_from((db_spell, conn)))
             .collect()
     }
@@ -97,8 +100,18 @@ impl Insert for Spell {
     }
 }*/
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
-#[derive(GetAll, GetById, Delete, Insert, Update)]
+#[derive(
+    AsChangeset,
+    Associations,
+    Identifiable,
+    Insertable,
+    Queryable,
+    GetAll,
+    GetById,
+    Delete,
+    Insert,
+    Update,
+)]
 #[table_name = "spells"]
 pub struct DBSpell {
     id: Uuid,
@@ -114,8 +127,7 @@ pub struct DBSpell {
     description: String,
 }
 
-#[derive(Associations, Identifiable, Insertable, Queryable)]
-#[derive(GetById, Delete, Insert)]
+#[derive(Associations, Identifiable, Insertable, Queryable, GetById, Delete, Insert)]
 #[tavern(id_field = "spell_id")]
 #[table_name = "spelleffects"]
 #[primary_key(spell_id, effect_id)]
@@ -135,8 +147,18 @@ pub struct SpellComponent {
     component_type: ComponentType,
 }
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
-#[derive(GetAll, GetById, Delete, Insert, Update)]
+#[derive(
+    AsChangeset,
+    Associations,
+    Identifiable,
+    Insertable,
+    Queryable,
+    GetAll,
+    GetById,
+    Delete,
+    Insert,
+    Update,
+)]
 #[table_name = "spellcomponents"]
 #[belongs_to(DBSpell, foreign_key = "spell_id")]
 pub struct DBSpellComponent {
@@ -147,23 +169,20 @@ pub struct DBSpellComponent {
     component_type: ComponentType,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(DbEnum, Debug)]
+#[derive(Serialize, Deserialize, DbEnum, Debug)]
 pub enum CasterType {
     Spontaneous,
     Prepared,
 }
 
-#[derive(Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq)]
-#[derive(DbEnum, Debug)]
+#[derive(Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, DbEnum, Debug)]
 pub enum ComponentType {
     Somatic,
     Material,
     Verbal,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(DbEnum, Debug)]
+#[derive(Serialize, Deserialize, DbEnum, Debug)]
 pub enum MagicSchool {
     Abjuration,
     Conjuration,
@@ -175,8 +194,7 @@ pub enum MagicSchool {
     Transmutation,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(DbEnum, Debug)]
+#[derive(Serialize, Deserialize, DbEnum, Debug)]
 pub enum SpellRange {
     Personal,
     Touch,

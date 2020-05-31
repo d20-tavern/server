@@ -5,13 +5,13 @@ mod error;
 mod literals;
 mod structs;
 
+use convert_case::{Case, Casing};
 use core::convert::TryFrom;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::punctuated::{Pair, Pairs};
 use syn::token::Comma;
 use syn::{Data, DeriveInput, Field, Fields};
-use convert_case::{Case, Casing};
 
 use crate::structs::DBStructAttrs;
 
@@ -22,7 +22,6 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 }
-
 
 #[proc_macro_attribute]
 pub fn db_test(_args: TokenStream, item: TokenStream) -> TokenStream {
@@ -98,24 +97,33 @@ pub fn derive_summarize(item: TokenStream) -> TokenStream {
 
     match &input.data {
         Data::Struct(struc) => fields = &struc.fields,
-        _ => return compile_error_args!(input.ident.span(), "this derive only applies to structs with named fields").into(),
+        _ => {
+            return compile_error_args!(
+                input.ident.span(),
+                "this derive only applies to structs with named fields"
+            )
+            .into()
+        }
     };
 
     let result = if let Fields::Named(named) = fields {
-        let id = field_from_iter(named.named.pairs(), "id")
-            .unwrap_or_else(|| panic!(
-            "auto creation of Summary type for {} requires field 'id'",
-            name
-        ));
-        let fname = field_from_iter(named.named.pairs(), "name").unwrap_or_else(|| panic!(
-            "auto creation of Summary type for {} requires field 'name'",
-            name
-        ));
+        let id = field_from_iter(named.named.pairs(), "id").unwrap_or_else(|| {
+            panic!(
+                "auto creation of Summary type for {} requires field 'id'",
+                name
+            )
+        });
+        let fname = field_from_iter(named.named.pairs(), "name").unwrap_or_else(|| {
+            panic!(
+                "auto creation of Summary type for {} requires field 'name'",
+                name
+            )
+        });
         let desc = field_from_iter(named.named.pairs(), "description")
                     .unwrap_or_else(|| panic!("auto creation of Summary type for {} requires field 'short_description' or 'description'", name));
         let links = field_from_iter(named.named.pairs(), "links")
-            .map(|id| quote!{ Some(&self.#id) })
-            .unwrap_or_else(|| quote!{ None });
+            .map(|id| quote! { Some(&self.#id) })
+            .unwrap_or_else(|| quote! { None });
 
         quote! {
             impl crate::pathfinder::summary::Summarize<#name> for #name {
@@ -137,7 +145,10 @@ pub fn derive_summarize(item: TokenStream) -> TokenStream {
             }
         }
     } else {
-        compile_error_args!(input.ident.span(), "can only impl_summary on structs with named fields")
+        compile_error_args!(
+            input.ident.span(),
+            "can only impl_summary on structs with named fields"
+        )
     };
 
     result.into()
@@ -151,24 +162,35 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
     let input = if let Data::Enum(e) = &input.data {
         e
     } else {
-        return compile_error_args!(input.ident.span(), "this macro only works on enums with all unit variants").into();
+        return compile_error_args!(
+            input.ident.span(),
+            "this macro only works on enums with all unit variants"
+        )
+        .into();
     };
 
     for v in input.variants.pairs() {
         match v.value().fields {
-            Fields::Unit => {},
-            _ => return compile_error_args!(v.value().ident.span(), "this macro only works on enums with all unit variants").into(),
+            Fields::Unit => {}
+            _ => {
+                return compile_error_args!(
+                    v.value().ident.span(),
+                    "this macro only works on enums with all unit variants"
+                )
+                .into()
+            }
         }
     }
 
-    let var_words = input.variants.pairs()
+    let var_words = input
+        .variants
+        .pairs()
         .map(|v| v.value().ident.to_string().to_case(Case::Lower));
 
-    let var = input.variants.pairs().zip(var_words)
-        .map(|(v, s)| {
-            let v = &v.value().ident;
-            quote!{ #name::#v => #s }
-        });
+    let var = input.variants.pairs().zip(var_words).map(|(v, s)| {
+        let v = &v.value().ident;
+        quote! { #name::#v => #s }
+    });
 
     let result = quote! {
         impl std::fmt::Display for #name {
@@ -192,12 +214,12 @@ pub fn derive_get_by_id(input: TokenStream) -> TokenStream {
         Ok(attrs) => attrs,
         Err(err) => return err.into(),
     };
-    let table = attrs.table.ok_or_else(||
+    let table = attrs.table.ok_or_else(|| {
         compile_error_args!(
             name.span(),
             "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
-    );
+    });
     let table = match table {
         Ok(t) => t,
         Err(err) => return err.into(),
@@ -229,12 +251,12 @@ pub fn derive_get_all(input: TokenStream) -> TokenStream {
         Ok(attrs) => attrs,
         Err(err) => return err.into(),
     };
-    let table = attrs.table.ok_or_else(||
+    let table = attrs.table.ok_or_else(|| {
         compile_error_args!(
             name.span(),
             "tavern(table) attribute expected, maps to object under crate::db::schemas"
         )
-    );
+    });
     let table = match table {
         Ok(t) => t,
         Err(err) => return err.into(),
@@ -265,12 +287,12 @@ pub fn derive_insert(input: TokenStream) -> TokenStream {
         Ok(attrs) => attrs,
         Err(err) => return err.into(),
     };
-    let table = attrs.table.ok_or_else(||
+    let table = attrs.table.ok_or_else(|| {
         compile_error_args!(
             name.span(),
             "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
-    );
+    });
     let table = match table {
         Ok(t) => t,
         Err(err) => return err.into(),
@@ -303,12 +325,12 @@ pub fn derive_update(input: TokenStream) -> TokenStream {
         Ok(attrs) => attrs,
         Err(err) => return err.into(),
     };
-    let table = attrs.table.ok_or_else(||
+    let table = attrs.table.ok_or_else(|| {
         compile_error_args!(
             name.span(),
             "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
-    );
+    });
     let table = match table {
         Ok(t) => t,
         Err(err) => return err.into(),
@@ -342,12 +364,12 @@ pub fn derive_delete(input: TokenStream) -> TokenStream {
         Ok(attrs) => attrs,
         Err(err) => return err.into(),
     };
-    let table = attrs.table.ok_or_else(||
+    let table = attrs.table.ok_or_else(|| {
         compile_error_args!(
             name.span(),
             "tavern(table) attribute expect to map to object under crate::db::schemas"
         )
-    );
+    });
     let table = match table {
         Ok(t) => t,
         Err(err) => return err.into(),

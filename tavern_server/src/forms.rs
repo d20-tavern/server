@@ -32,7 +32,8 @@ mod tests {
     #[test]
     fn get_form_text_field_works() {
         let form = generate_form();
-        let value = super::get_form_text_field(&form, FIELD_TEXT_FOO).expect("this should not fail");
+        let value =
+            super::get_form_text_field(&form, FIELD_TEXT_FOO).expect("this should not fail");
         assert_eq!(&value, VALUE_TEXT_FOO);
     }
 

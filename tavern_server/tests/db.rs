@@ -5,5 +5,7 @@ async fn init_database_succeeds() {
 
 #[tavern_derive::db_test]
 async fn double_database_init_succeeds() {
-    tavern_db::init().await.expect("second database init failed");
+    tavern_db::init()
+        .await
+        .expect("second database init failed");
 }

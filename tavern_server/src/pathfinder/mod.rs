@@ -7,23 +7,21 @@ pub mod religion;
 pub mod spell;
 pub mod summary;
 
+use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
 use std::collections::BTreeMap;
 use std::hash::Hash;
 use tavern_derive::Display;
-use diesel_derive_enum::DbEnum;
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display)]
 pub enum Gender {
     Male,
     Female,
     Other,
 }
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display)]
 pub enum Size {
     Fine,
     Diminutive,
@@ -36,8 +34,7 @@ pub enum Size {
     Colossal,
 }
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display)]
 pub enum Alignment {
     LawfulGood,
     LawfulNeutral,
@@ -50,8 +47,7 @@ pub enum Alignment {
     ChaoticEvil,
 }
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum Attribute {
     Strength,
     Dexterity,
@@ -63,8 +59,7 @@ pub enum Attribute {
 
 pub type Attributes = BTreeMap<Attribute, i8>;
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum Skill {
     Acrobatics,
     Appraise,
@@ -113,8 +108,7 @@ pub enum SaveThrow {
     Will,
 }
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum CharacterStat {
     Name,
     Race,
@@ -131,8 +125,7 @@ pub enum CharacterStat {
 
 pub type CharacterStats = BTreeMap<CharacterStat, i16>;
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub enum CombatStat {
     MeleeAttackBonus,
     RangedAttackBonus,
@@ -152,8 +145,7 @@ pub enum CombatStat {
 
 pub type CombatStats = BTreeMap<CombatStat, i16>;
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display)]
 pub enum EquipmentSlot {
     Armor,
     Belts,
@@ -172,8 +164,7 @@ pub enum EquipmentSlot {
     Wrist,
 }
 
-#[derive(DbEnum, Debug)]
-#[derive(Serialize, Deserialize, Display)]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Display)]
 pub enum DamageType {
     Bludgeoning,
     Slashing,

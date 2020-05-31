@@ -1,8 +1,13 @@
-use crate::{forms, schema};
+use crate::db::{Delete, GetAll, GetById, Insert, Update};
 use crate::status::{Error, Success};
 use crate::{config, db, status};
+use crate::{forms, schema};
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use bytes::Bytes;
+use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
+use diesel::result::Error as DieselError;
+use diesel::RunQueryDsl;
 use http::HeaderValue;
 use nebula_form::Form;
 use nebula_status::{Empty, Status, StatusCode};
@@ -10,15 +15,10 @@ use rand::RngCore;
 use serde::Serialize;
 use std::convert::TryFrom;
 use structopt::StructOpt;
+use uuid::Uuid;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
 use warp::Filter;
-use uuid::Uuid;
-use diesel::prelude::*;
-use diesel::RunQueryDsl;
-use diesel::result::Error as DieselError;
-use diesel::result::DatabaseErrorKind;
-use crate::db::{GetAll, GetById, Insert, Update, Delete};
 
 use crate::schema::users;
 
@@ -370,8 +370,18 @@ impl UserAuth {
     }
 }
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
-#[derive(GetAll, GetById, Insert, Update, Delete)]
+#[derive(
+    AsChangeset,
+    Associations,
+    Identifiable,
+    Insertable,
+    Queryable,
+    GetAll,
+    GetById,
+    Insert,
+    Update,
+    Delete,
+)]
 #[table_name = "users"]
 struct DBUser {
     id: Uuid,
@@ -408,7 +418,7 @@ impl Into<(User, UserAuth)> for DBUser {
             id: Some(self.id),
             username: self.username,
             email: self.email,
-            is_admin: self.is_admin
+            is_admin: self.is_admin,
         };
 
         let config = Argon2Opt {
@@ -430,26 +440,24 @@ impl Into<(User, UserAuth)> for DBUser {
 impl DBUser {
     fn db_from_username(user_username: String, conn: &db::Connection) -> Result<Self, Rejection> {
         use schema::users::dsl::*;
-        users.filter(username.eq(&user_username))
+        users
+            .filter(username.eq(&user_username))
             .first::<DBUser>(conn)
-            .map_err(|err|
-                match err {
-                    DieselError::NotFound => reject_login_required(),
-                    _ => status::server_error_into_rejection(err.to_string()),
-                }
-            )
+            .map_err(|err| match err {
+                DieselError::NotFound => reject_login_required(),
+                _ => status::server_error_into_rejection(err.to_string()),
+            })
     }
 
     fn db_from_email(user_email: String, conn: &db::Connection) -> Result<Self, Rejection> {
         use schema::users::dsl::*;
-        users.filter(email.eq(&user_email))
+        users
+            .filter(email.eq(&user_email))
             .first::<DBUser>(conn)
-            .map_err(|err|
-                match err {
-                    DieselError::NotFound => reject_login_required(),
-                    _ => status::server_error_into_rejection(err.to_string()),
-                }
-            )
+            .map_err(|err| match err {
+                DieselError::NotFound => reject_login_required(),
+                _ => status::server_error_into_rejection(err.to_string()),
+            })
     }
 }
 
@@ -539,34 +547,31 @@ async fn register_in_database(
         .values(db_user)
         .execute(&conn)
         .map(|_| Status::new(&StatusCode::OK))
-        .map_err(|err| {
-            match &err {
-                DieselError::DatabaseError(kind, info) => {
-                    match kind {
-                        DatabaseErrorKind::UniqueViolation => {
-                            match info.constraint_name() {
-                                None => Status::with_message(
-                                    &StatusCode::BAD_REQUEST,
-                                    "a user with that information already exists".to_string()
-                                ).into(),
-                                Some(name) => match name {
-                                    "user_email_unique" => Status::with_message(
-                                        &StatusCode::BAD_REQUEST,
-                                        "a user with that email already exists".to_string()
-                                    ).into(),
-                                    "user_username_unique" => Status::with_message(
-                                        &StatusCode::BAD_REQUEST,
-                                        "a user with that username already exists".to_string()
-                                    ).into(),
-                                    other => status::server_error_into_rejection(err.to_string()),
-                                }
-                            }
-                        },
-                        _ => status::server_error_into_rejection(err.to_string()),
-                    }
+        .map_err(|err| match &err {
+            DieselError::DatabaseError(kind, info) => match kind {
+                DatabaseErrorKind::UniqueViolation => match info.constraint_name() {
+                    None => Status::with_message(
+                        &StatusCode::BAD_REQUEST,
+                        "a user with that information already exists".to_string(),
+                    )
+                    .into(),
+                    Some(name) => match name {
+                        "user_email_unique" => Status::with_message(
+                            &StatusCode::BAD_REQUEST,
+                            "a user with that email already exists".to_string(),
+                        )
+                        .into(),
+                        "user_username_unique" => Status::with_message(
+                            &StatusCode::BAD_REQUEST,
+                            "a user with that username already exists".to_string(),
+                        )
+                        .into(),
+                        other => status::server_error_into_rejection(err.to_string()),
+                    },
                 },
-                other => status::server_error_into_rejection(other.to_string()),
-            }
+                _ => status::server_error_into_rejection(err.to_string()),
+            },
+            other => status::server_error_into_rejection(other.to_string()),
         })
 }
 
@@ -665,7 +670,5 @@ pub fn user_filter() -> BoxedFilter<(User,)> {
 
 /// An endpoint that tests if the user credentials are correct and nothing more.
 pub fn login_filter() -> BoxedFilter<(Status<Empty>,)> {
-    user_filter()
-        .map(|_| Status::new(&StatusCode::OK))
-        .boxed()
+    user_filter().map(|_| Status::new(&StatusCode::OK)).boxed()
 }
