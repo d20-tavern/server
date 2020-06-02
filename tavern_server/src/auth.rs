@@ -30,7 +30,6 @@ pub const ARGON2_SALT_LENGTH: usize = 32;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::executor::block_on;
     use nebula_form::{Field, Form};
 
     const TEST_MEMORY: u32 = 1024u32;
@@ -93,15 +92,15 @@ mod tests {
         assert_eq!(info.user.email, email);
     }
 
-    #[test]
-    fn hash_succeeds() {
+    #[tokio::test]
+    async fn hash_succeeds() {
         let salt = b"super secret salt";
         let pass = b"p@ssw0rd";
         let conf = argon2::Config::default();
 
         let expected = argon2::hash_raw(pass, salt, &conf).unwrap();
 
-        let hash = block_on(hash_password(pass, salt, &conf)).unwrap();
+        let hash = hash_password(pass, salt, &conf).await.unwrap();
 
         // Note: for actual application uses, argon2::verify_raw should be used instead
         assert_eq!(expected, hash);

@@ -298,18 +298,36 @@ pub fn derive_insert(input: TokenStream) -> TokenStream {
         Err(err) => return err.into(),
     };
 
-    let result = quote! {
-        impl crate::db::Insert for #name {
-            fn db_insert(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
-                use crate::schema::#table::dsl::*;
-                use crate::diesel::ExpressionMethods;
-                use crate::diesel::RunQueryDsl;
-                use crate::diesel::QueryDsl;
-                diesel::insert_into(#table)
-                    .values(self)
-                    .execute(conn)
-                    .map_err(crate::db::Error::RunQuery)
-                    .map(|_| ())
+    let result = if attrs.is_insertable {
+        quote! {
+            impl crate::db::Insert for #name {
+                fn db_insert(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                    use crate::schema::#table::dsl::*;
+                    use crate::diesel::ExpressionMethods;
+                    use crate::diesel::RunQueryDsl;
+                    use crate::diesel::QueryDsl;
+                    diesel::insert_into(#table)
+                        .values(self)
+                        .execute(conn)
+                        .map_err(crate::db::Error::RunQuery)
+                        .map(|_| ())
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl crate::db::Insert for #name {
+                fn db_insert(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                    use crate::schema::#table::dsl::*;
+                    use crate::diesel::ExpressionMethods;
+                    use crate::diesel::RunQueryDsl;
+                    use crate::diesel::QueryDsl;
+                    diesel::insert_into(#table)
+                        .values(self)
+                        .execute(conn)
+                        .map_err(crate::db::Error::RunQuery)
+                        .map(|_| ())
+                }
             }
         }
     };
@@ -337,15 +355,72 @@ pub fn derive_update(input: TokenStream) -> TokenStream {
     };
     let id_field = attrs.id_field;
 
+    let result = if attrs.is_identifiable {
+        quote! {
+            impl crate::db::Update for #name {
+                fn db_update(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                    use crate::schema::#table::dsl::*;
+                    use crate::diesel::ExpressionMethods;
+                    use crate::diesel::RunQueryDsl;
+                    use crate::diesel::QueryDsl;
+                    diesel::update(self)
+                        .set(self)
+                        .execute(conn)
+                        .map_err(crate::db::Error::RunQuery)
+                        .map(|_| ())
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl crate::db::Update for #name {
+                fn db_update(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                    use crate::schema::#table::dsl::*;
+                    use crate::diesel::ExpressionMethods;
+                    use crate::diesel::RunQueryDsl;
+                    use crate::diesel::QueryDsl;
+                    diesel::update(#table.filter(#id_field.eq(&self.id)))
+                        .set(self)
+                        .execute(conn)
+                        .map_err(crate::db::Error::RunQuery)
+                        .map(|_| ())
+                }
+            }
+        }
+    };
+
+    result.into()
+}
+
+#[proc_macro_derive(DeleteById, attributes(table_name, tavern))]
+pub fn derive_delete_by_id(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    let attrs = match DBStructAttrs::try_from(input.attrs) {
+        Ok(attrs) => attrs,
+        Err(err) => return err.into(),
+    };
+    let table = attrs.table.ok_or_else(|| {
+        compile_error_args!(
+            name.span(),
+            "tavern(table) attribute expect to map to object under crate::db::schemas"
+        )
+    });
+    let table = match table {
+        Ok(t) => t,
+        Err(err) => return err.into(),
+    };
+    let id_field = attrs.id_field;
+
     let result = quote! {
-        impl crate::db::Update for #name {
-            fn db_update(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+        impl crate::db::DeleteById for #name {
+            fn db_delete_by_id(id: &uuid::Uuid, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                use diesel::prelude::*;
                 use crate::schema::#table::dsl::*;
                 use crate::diesel::ExpressionMethods;
                 use crate::diesel::RunQueryDsl;
                 use crate::diesel::QueryDsl;
-                diesel::update(#table.filter(#id_field.eq(&self.id)))
-                    .set(self)
+                diesel::delete(#table.filter(#id_field.eq(id)))
                     .execute(conn)
                     .map_err(crate::db::Error::RunQuery)
                     .map(|_| ())
@@ -376,19 +451,50 @@ pub fn derive_delete(input: TokenStream) -> TokenStream {
     };
     let id_field = attrs.id_field;
 
-    let result = quote! {
-        impl crate::db::Delete for #name {
-            fn db_delete(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
-                use crate::schema::#table::dsl::*;
-                use crate::diesel::ExpressionMethods;
-                use crate::diesel::RunQueryDsl;
-                use crate::diesel::QueryDsl;
-                diesel::delete(#table.filter(#id_field.eq(&self.#id_field)))
-                    .execute(conn)
-                    .map_err(crate::db::Error::RunQuery)
-                    .map(|_| ())
+    let result = if attrs.is_identifiable {
+        quote! {
+            impl crate::db::Delete for #name {
+                fn db_delete(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                    use diesel::prelude::*;
+                    use crate::schema::#table::dsl::*;
+                    use crate::diesel::ExpressionMethods;
+                    use crate::diesel::RunQueryDsl;
+                    use crate::diesel::QueryDsl;
+                    diesel::delete(self)
+                        .execute(conn)
+                        .map_err(crate::db::Error::RunQuery)
+                        .map(|_| ())
+                }
             }
         }
+    } else {
+        quote! {
+            impl crate::db::Delete for #name {
+                fn db_delete(&self, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+                    use diesel::prelude::*;
+                    use crate::schema::#table::dsl::*;
+                    use crate::diesel::ExpressionMethods;
+                    use crate::diesel::RunQueryDsl;
+                    use crate::diesel::QueryDsl;
+                    diesel::delete(#table.filter(#id_field.eq(&self.#id_field)))
+                        .execute(conn)
+                        .map_err(crate::db::Error::RunQuery)
+                        .map(|_| ())
+                }
+            }
+        }
+    };
+
+    result.into()
+}
+
+#[proc_macro_derive(StandaloneDbMarker, attributes(table_name, tavern))]
+pub fn derive_standalone_db_marker(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    let result = quote! {
+        impl crate::db::StandaloneDbMarker for #name {}
     };
 
     result.into()

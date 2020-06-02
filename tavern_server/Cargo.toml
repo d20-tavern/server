@@ -29,7 +29,7 @@ bytes = "0.5.4"
 diesel = { version = "1.4.4", features = ["postgres", "extras", "r2d2", "uuidv07"] }
 diesel-derive-enum = { version = "1", features = ["postgres"] }
 diesel_migrations = { version ="1.4", features = ["postgres"] }
-futures = "0.3"
+#futures = "0.3"
 http = "0.2"
 lazy_static = "1.4"
 nebula_form = { version = "0.1", features = ["server-warp"] }

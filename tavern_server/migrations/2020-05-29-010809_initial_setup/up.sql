@@ -393,7 +393,7 @@ CREATE TABLE SubclassFeatures (
 CREATE TABLE Items (
     id              UUID    PRIMARY KEY,
     name            TEXT    NOT NULL,
-    description     TEXT,
+    description     TEXT    NOT NULL,
     cost            INT     NOT NULL CHECK (cost >= 0), -- prices are in copper
     weight          FLOAT8  NOT NULL CHECK (weight >=0),
     equip_slot      equipment_slot
@@ -534,7 +534,8 @@ CREATE TABLE SpellComponents (
     spell_id        UUID            REFERENCES Spells(id) NOT NULL,
     item_id         UUID            REFERENCES Items(id),
     item_amount     SMALLINT        CHECK (item_amount >= 0),
-    component_type  component_type   NOT NULL
+    component_type  component_type  NOT NULL,
+    CONSTRAINT component_item_nullness CHECK ((item_id IS NULL AND item_amount IS NULL) or (item_id IS NOT NULL AND item_amount IS NOT NULL))
 );
 
 CREATE TABLE Subdomains (
@@ -591,7 +592,7 @@ CREATE TABLE ClassEffects (
 CREATE TABLE ItemEffects (
     item_id         UUID        REFERENCES Items(id) NOT NULL,
     effect_id       UUID        REFERENCES Effects(id) NOT NULL,
-    is_permanent    BOOLEAN     DEFAULT false,
+    is_permanent    BOOLEAN     NOT NULL DEFAULT false,
     PRIMARY KEY(item_id, effect_id)
 );
 

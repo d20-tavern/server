@@ -15,8 +15,9 @@ use crate::schema::{
     characterequipment, characterfeats, characterfeatures, characters, characterspells,
     charactersubclasses, races, racesubtypes, racetypes,
 };
+use std::cmp::Ordering;
 
-#[derive(Serialize, Deserialize, Summarize)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Character {
     id: Uuid,
     race: Race,
@@ -68,7 +69,7 @@ impl Character {
     }
 }
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "characters"]
 pub struct DBCharacter {
     id: Uuid,
@@ -102,7 +103,7 @@ pub struct DBCharacter {
     platinum: i16,
 }
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "charactersubclasses"]
 #[primary_key(char_id, subclass_id)]
 #[belongs_to(DBCharacter, foreign_key = "char_id")]
@@ -114,7 +115,7 @@ pub struct DBCharacterSubclass {
     skills_taken: i16,
 }
 
-#[derive(Associations, Identifiable, Insertable, Queryable)]
+#[derive(Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "characterfeats"]
 #[primary_key(char_id, feat_id)]
 #[belongs_to(DBCharacter, foreign_key = "char_id")]
@@ -123,7 +124,7 @@ pub struct DBCharacterFeat {
     feat_id: Uuid,
 }
 
-#[derive(Associations, Identifiable, Insertable, Queryable)]
+#[derive(Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "characterfeatures"]
 #[primary_key(char_id, feature_id)]
 #[belongs_to(DBCharacter, foreign_key = "char_id")]
@@ -132,7 +133,7 @@ pub struct DBCharacterFeature {
     feature_id: Uuid,
 }
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "characterspells"]
 #[primary_key(char_id, spell_id)]
 #[belongs_to(DBCharacter, foreign_key = "char_id")]
@@ -142,7 +143,7 @@ pub struct DBCharacterSpell {
     casts_remaining: i16,
 }
 
-#[derive(Associations, Identifiable, Insertable, Queryable)]
+#[derive(Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "characterequipment"]
 #[primary_key(char_id, item_id)]
 #[belongs_to(DBCharacter, foreign_key = "char_id")]
@@ -153,7 +154,7 @@ pub struct DBCharacterEquipment {
 
 // TODO: I think this can be implemented better
 
-#[derive(Serialize, Deserialize, Summarize)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Race {
     id: Uuid,
     links: Links,
@@ -166,7 +167,7 @@ pub struct Race {
     languages: Vec<String>,
 }
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "races"]
 pub struct DBRace {
     id: Uuid,
@@ -179,7 +180,7 @@ pub struct DBRace {
     languages: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+#[derive(Serialize, Deserialize, AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone)]
 #[table_name = "racetypes"]
 pub struct RaceType {
     id: Uuid,
@@ -188,7 +189,27 @@ pub struct RaceType {
     bab_per_hit_die: f32,
 }
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
+impl Ord for RaceType {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for RaceType {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for RaceType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for RaceType{}
+
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[table_name = "racesubtypes"]
 #[derive(Serialize, Deserialize)]
 pub struct RaceSubtype {

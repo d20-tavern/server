@@ -6,6 +6,9 @@ use syn::{Attribute, Ident, LitStr, Meta, NestedMeta, Path};
 
 pub(crate) struct DBStructAttrs {
     pub(crate) id_field: Ident,
+    pub(crate) is_identifiable: bool,
+    pub(crate) is_insertable: bool,
+    pub(crate) is_queryable: bool,
     pub(crate) table: Option<Path>,
 }
 
@@ -14,6 +17,9 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
     fn try_from(attrs: Vec<Attribute>) -> Result<Self, TokenStream> {
         let mut id_field = None;
         let mut table = None;
+        let mut is_identifiable = false;
+        let mut is_insertable = false;
+        let mut is_queryable = false;
 
         for attr in attrs.iter() {
             match &attr.parse_meta().map_err(|err| err.to_compile_error())? {
@@ -39,7 +45,16 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
                                                     }
                                                 }
                                             },
-                                            _ => return Err(compile_error_args!(meta.span(), "tavern attribute currently only takes name-value pairs")),
+                                            Meta::Path(path) => match path.get_ident() {
+                                                None => return Err(compile_error_args!(meta.span(), "tavern inner attributes should not contain multi-segment paths")),
+                                                Some(id) => match id.to_string().as_str() {
+                                                    "is_identifiable" => is_identifiable = true,
+                                                    "is_insertable" => is_identifiable = true,
+                                                    "is_queryable" => is_queryable = true,
+                                                    _ => return Err(compile_error_args!(meta.span(), "unknown attribute name {}", id)),
+                                                }
+                                            },
+                                            _ => return Err(compile_error_args!(meta.span(), "tavern attribute currently only takes name-value pairs or single-segment paths")),
                                         }
                                     },
                                     NestedMeta::Lit(lit) => {
@@ -89,6 +104,9 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
 
         Ok(DBStructAttrs {
             table,
+            is_identifiable,
+            is_insertable,
+            is_queryable,
             id_field: id_field.unwrap_or(literals::try_from_lit_str(&LitStr::new(
                 "id",
                 Span::call_site(),

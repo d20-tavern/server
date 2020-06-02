@@ -1,3 +1,4 @@
+use crate::pathfinder::summary::Summarize;
 use crate::status;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
@@ -6,11 +7,12 @@ use lazy_static::lazy_static;
 use std::fmt::{self, Display};
 use std::sync::Arc;
 use structopt::StructOpt;
-pub use tavern_derive::*;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use warp::filters::BoxedFilter;
 use warp::{Filter, Rejection};
+
+pub use tavern_derive::*;
 
 #[cfg(test)]
 mod tests {
@@ -137,46 +139,154 @@ pub async fn get_connection() -> Result<Connection, Error> {
 #[derive(Debug)]
 pub enum Error {
     Connection(::r2d2::Error),
+    InvalidValues(Vec<String>),
     Migration(diesel_migrations::RunMigrationsError),
     RunQuery(result::Error),
     NoRows,
     UserUnauthorized(Uuid),
+    Other(String),
+}
+
+impl From<result::Error> for Error {
+    fn from(err: result::Error) -> Self {
+        Error::RunQuery(err)
+    }
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Connection(err) => write!(f, "{}", err.to_string()),
+            Error::InvalidValues(list) => write!(f, "{}", list.join(", ")),
             Error::Migration(err) => write!(f, "{}", err.to_string()),
             Error::RunQuery(err) => write!(f, "{}", err.to_string()),
             Error::NoRows => write!(f, "No rows"),
             Error::UserUnauthorized(id) => write!(f, "User {} is unauthorized", id),
+            Error::Other(err) => write!(f, "{}", err),
         }
     }
 }
 
+pub trait TryFromDb {
+    type DBType;
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized;
+}
+
+pub trait IntoDbWithId {
+    type DBType;
+    fn into_db(self, id: Uuid) -> Self::DBType;
+}
+
+pub trait IntoDb {
+    type DBType;
+    fn into_db(self) -> Self::DBType;
+}
+
+/// This trait represents a type that is based on a single DB table. It may have foreign
+/// keys, but there are e.g. no junction tables that need to be updated when this type is
+/// updated.
+pub trait StandaloneDbMarker {}
+
 pub trait GetById {
-    fn db_get_by_id(id: &Uuid, conn: &crate::db::Connection) -> Result<Self, Error>
+    fn db_get_by_id(id: &Uuid, conn: &Connection) -> Result<Self, Error>
     where
         Self: Sized;
+}
+
+impl<T, U> GetById for T where T: TryFromDb<DBType=U>, U: GetById {
+    fn db_get_by_id(id: &Uuid, conn: &Connection) -> Result<Self, Error> where
+        Self: Sized {
+        T::try_from_db(U::db_get_by_id(id, conn)?, conn)
+    }
 }
 
 pub trait GetAll {
-    fn db_get_all(conn: &crate::db::Connection) -> Result<Vec<Self>, Error>
+    fn db_get_all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized;
 }
 
+impl<T, U> GetAll for T where T: TryFromDb<DBType=U>, U: GetAll {
+    fn db_get_all(conn: &Connection) -> Result<Vec<Self>, Error> where
+        Self: Sized {
+        U::db_get_all(conn)?
+            .into_iter()
+            .map(|item| T::try_from_db(item, conn))
+            .collect()
+    }
+}
+
 pub trait Insert {
-    fn db_insert(&self, conn: &crate::db::Connection) -> Result<(), Error>;
+    fn db_insert(&self, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> Insert for (T, Uuid) where T: IntoDbWithId<DBType=U> + Clone + StandaloneDbMarker, U: Insert {
+    fn db_insert(&self, conn: &Connection) -> Result<(), Error> {
+        let (item, id) = self;
+        let db_item: U = T::clone(item)
+            .into_db(Uuid::clone(id));
+        db_item.db_insert(conn)
+    }
+}
+
+impl<T,U> Insert for T where T: IntoDb<DBType=U> + Clone + StandaloneDbMarker, U: Insert {
+    fn db_insert(&self, conn: &Connection) -> Result<(), Error> {
+        let db_item: U = T::clone(self)
+            .into_db();
+        db_item.db_insert(conn)
+    }
 }
 
 pub trait Update {
-    fn db_update(&self, conn: &crate::db::Connection) -> Result<(), Error>;
+    fn db_update(&self, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> Update for (T, Uuid) where T: IntoDbWithId<DBType=U> + Clone + StandaloneDbMarker, U: Update {
+    fn db_update(&self, conn: &Connection) -> Result<(), Error> {
+        let (item, id) = self;
+        let db_item: U = T::clone(item)
+            .into_db(Uuid::clone(id));
+        db_item.db_update(conn)
+    }
+}
+
+impl<T,U> Update for T where T: IntoDb<DBType=U> + Clone + StandaloneDbMarker, U: Update {
+    fn db_update(&self, conn: &Connection) -> Result<(), Error> {
+        let db_item: U = T::clone(self)
+            .into_db();
+        db_item.db_update(conn)
+    }
 }
 
 pub trait Delete {
-    fn db_delete(&self, conn: &crate::db::Connection) -> Result<(), Error>;
+    fn db_delete(&self, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> Delete for (T, Uuid) where T: IntoDbWithId<DBType=U> + Clone + StandaloneDbMarker, U: Delete {
+    fn db_delete(&self, conn: &Connection) -> Result<(), Error> {
+        let (item, id) = self;
+        let db_item: U = T::clone(item)
+            .into_db(Uuid::clone(id));
+        db_item.db_delete(conn)
+    }
+}
+
+impl<T,U> Delete for T where T: IntoDb<DBType=U> + Clone + StandaloneDbMarker, U: Delete {
+    fn db_delete(&self, conn: &Connection) -> Result<(), Error> {
+        let db_item: U = T::clone(self)
+            .into_db();
+        db_item.db_delete(conn)
+    }
+}
+
+pub trait DeleteById {
+    fn db_delete_by_id(id: &Uuid, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> DeleteById for T where T: TryFromDb<DBType=U> + StandaloneDbMarker , U: DeleteById {
+    fn db_delete_by_id(id: &Uuid, conn: &Connection) -> Result<(), Error> {
+        U::db_delete_by_id(id, conn)
+    }
 }
 
 // Error codes come from https://www.postgresql.org/docs/10/errcodes-appendix.html

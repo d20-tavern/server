@@ -376,7 +376,7 @@ table! {
     itemeffects (item_id, effect_id) {
         item_id -> Uuid,
         effect_id -> Uuid,
-        is_permanent -> Nullable<Bool>,
+        is_permanent -> Bool,
     }
 }
 
@@ -387,7 +387,7 @@ table! {
     items (id) {
         id -> Uuid,
         name -> Text,
-        description -> Nullable<Text>,
+        description -> Text,
         cost -> Int4,
         weight -> Float8,
         equip_slot -> Nullable<EquipmentSlotMapping>,
