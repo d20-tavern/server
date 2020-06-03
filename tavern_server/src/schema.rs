@@ -88,9 +88,9 @@ table! {
         age -> Int2,
         gender -> GenderMapping,
         alignment -> AlignmentMapping,
-        backstory -> Nullable<Text>,
-        height -> Nullable<Int2>,
-        weight -> Nullable<Int2>,
+        backstory -> Text,
+        height -> Int2,
+        weight -> Int2,
         size -> SizeMapping,
         strength -> Int2,
         dexterity -> Int2,
@@ -455,7 +455,7 @@ table! {
         name -> Text,
         move_speed -> Int2,
         size -> SizeMapping,
-        languages -> Nullable<Array<Text>>,
+        languages -> Array<Text>,
     }
 }
 

@@ -19,7 +19,7 @@ fn get_registration_form() -> Form {
     form
 }
 
-async fn registration_request(form: &Form) -> Result<Status<Success<auth::User>>, Rejection> {
+async fn registration_request(form: &Form) -> Result<Status<Empty>, Rejection> {
     warp::test::request()
         .path("/register")
         .method("POST")

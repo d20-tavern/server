@@ -87,45 +87,45 @@ impl IntoDb for Effect {
     type DBType = (DBEffect, Vec<DBEffectAttributeUnit>, Vec<DBEffectSkillUnit>, Vec<DBEffectCharacterUnit>, Vec<DBEffectCombatUnit>, Option<DBEffectMiscUnit>);
 
     fn into_db(self) -> Self::DBType {
+        let attr_units = self.attr_effects.iter()
+            .map(|(attr, modifier)| DBEffectAttributeUnit {
+                effect_id: self.id.clone(),
+                attr: *attr,
+                modifier: *modifier,
+            }).collect();
+
+        let skill_units = self.skill_effects.iter()
+            .map(|(skill, modifier)| DBEffectSkillUnit {
+                effect_id: self.id.clone(),
+                skill: *skill,
+                modifier: *modifier,
+            }).collect();
+
+        let char_units = self.char_effects.iter()
+            .map(|(stat, modifier)| DBEffectCharacterUnit {
+                effect_id: self.id.clone(),
+                stat: *stat,
+                modifier: *modifier,
+            }).collect();
+
+        let combat_units = self.combat_effects.iter()
+            .map(|(stat, modifier)| DBEffectCombatUnit {
+                effect_id: self.id.clone(),
+                stat: *stat,
+                modifier: *modifier,
+            }).collect();
+
+        let misc_unit = self.misc_effect.as_ref().map(|val| DBEffectMiscUnit {
+            effect_id: self.id.clone(),
+            description: val.to_owned(),
+        });
+
         let effect = DBEffect {
             id: self.id.clone(),
             name: self.name,
             short_description: self.short_description,
             long_description: self.long_description,
         };
-
-        let attr_units = self.attr_effects.into_iter()
-            .map(|(attr, modifier)| DBEffectAttributeUnit {
-                effect_id: self.id.clone(),
-                attr,
-                modifier,
-            }).collect();
-
-        let skill_units = self.skill_effects.into_iter()
-            .map(|(skill, modifier)| DBEffectSkillUnit {
-                effect_id: self.id.clone(),
-                skill,
-                modifier,
-            }).collect();
-
-        let char_units = self.char_effects.into_iter()
-            .map(|(stat, modifier)| DBEffectCharacterUnit {
-                effect_id: self.id.clone(),
-                stat,
-                modifier,
-            }).collect();
-
-        let combat_units = self.combat_effects.into_iter()
-            .map(|(stat, modifier)| DBEffectCombatUnit {
-                effect_id: self.id.clone(),
-                stat,
-                modifier,
-            }).collect();
-
-        let misc_unit = self.misc_effect.map(|val| DBEffectMiscUnit {
-            effect_id: self.id.clone(),
-            description: val,
-        });
 
         (effect, attr_units, skill_units, char_units, combat_units, misc_unit)
     }

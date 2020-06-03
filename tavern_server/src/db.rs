@@ -1,4 +1,3 @@
-use crate::pathfinder::summary::Summarize;
 use crate::status;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};

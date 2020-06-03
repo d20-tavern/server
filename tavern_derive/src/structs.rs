@@ -49,7 +49,7 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
                                                 None => return Err(compile_error_args!(meta.span(), "tavern inner attributes should not contain multi-segment paths")),
                                                 Some(id) => match id.to_string().as_str() {
                                                     "is_identifiable" => is_identifiable = true,
-                                                    "is_insertable" => is_identifiable = true,
+                                                    "is_insertable" => is_insertable = true,
                                                     "is_queryable" => is_queryable = true,
                                                     _ => return Err(compile_error_args!(meta.span(), "unknown attribute name {}", id)),
                                                 }

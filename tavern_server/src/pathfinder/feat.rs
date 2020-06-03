@@ -5,7 +5,7 @@ use uuid::Uuid;
 use super::summary::{Summarize, Summary};
 use super::{Attributes, Skills};
 
-use super::effects::{DBEffect, Effect};
+use super::effects::Effect;
 use super::{Attribute, Skill};
 
 use crate::schema::{attributefeatunits, feateffects, featrequirements, feats, skillfeatunits};
@@ -13,6 +13,7 @@ use crate::db::{TryFromDb, IntoDb, Connection, Error, GetById, GetAll, Delete, D
 use diesel::prelude::*;
 use diesel::associations::BelongsTo;
 use diesel::Connection as DieselConnection;
+use std::collections::BTreeSet;
 
 #[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Feat {
@@ -25,6 +26,7 @@ pub struct Feat {
     req_skills: Skills,
     req_attrs: Attributes,
     req_feats: Vec<Summary<Feat>>,
+    effects: BTreeSet<Summary<Effect>>,
 }
 
 impl TryFromDb for Feat {
@@ -50,6 +52,12 @@ impl TryFromDb for Feat {
             .into_iter()
             .map(|feat| Summary::<Feat>::db_get_by_id(&feat.required_feat, conn))
             .collect::<Result<Vec<Summary<Feat>>, Error>>()?;
+        let effects = DBFeatEffect::belonging_to(&other)
+            .load::<DBFeatEffect>(conn)
+            .map_err(Error::RunQuery)?
+            .into_iter()
+            .map(|e| Summary::<Effect>::db_get_by_id(&e.effect_id, conn))
+            .collect::<Result<_, Error>>()?;
 
         let feat = Feat {
             id: other.id,
@@ -60,6 +68,7 @@ impl TryFromDb for Feat {
             req_attrs,
             req_feats,
             req_skills,
+            effects,
         };
 
         Ok(feat)
@@ -70,35 +79,35 @@ impl IntoDb for Feat {
     type DBType = (DBFeat, Vec<DBFeatRequiredAttribute>, Vec<DBFeatRequiredSkill>, Vec<DBFeatRequiredFeat>);
 
     fn into_db(self) -> Self::DBType {
+        let req_attrs = self.req_attrs.iter()
+            .map(|(attr, score)| DBFeatRequiredAttribute {
+                feat_id: self.id.clone(),
+                attr: *attr,
+                score: *score,
+            })
+            .collect();
+
+        let req_skills = self.req_skills.iter()
+            .map(|(skill, ranks)| DBFeatRequiredSkill {
+                feat_id: self.id.clone(),
+                skill: *skill,
+                ranks: *ranks,
+            })
+            .collect();
+
+        let req_feats = self.req_feats.iter()
+            .map(|feat| DBFeatRequiredFeat {
+                feat_id: self.id.clone(),
+                required_feat: feat.id().to_owned(),
+            })
+            .collect();
+
         let feat = DBFeat {
             id: self.id.clone(),
             name: self.name,
             short_description: self.short_description,
             long_description: self.long_description,
         };
-
-        let req_attrs = self.req_attrs.into_iter()
-            .map(|(attr, score)| DBFeatRequiredAttribute {
-                feat_id: self.id.clone(),
-                attr,
-                score,
-            })
-            .collect();
-
-        let req_skills = self.req_skills.into_iter()
-            .map(|(skill, ranks)| DBFeatRequiredSkill {
-                feat_id: self.id.clone(),
-                skill,
-                ranks,
-            })
-            .collect();
-
-        let req_feats = self.req_feats.into_iter()
-            .map(|feat| DBFeatRequiredFeat {
-                feat_id: self.id.clone(),
-                required_feat: self.id.clone(),
-            })
-            .collect();
 
         (feat, req_attrs, req_skills, req_feats)
     }

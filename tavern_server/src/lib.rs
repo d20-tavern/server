@@ -1,6 +1,8 @@
 // This macro_use is necessary until diesel 2.0
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 
 use warp::filters::BoxedFilter;
 use warp::{Filter, Reply};

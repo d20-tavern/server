@@ -8,10 +8,8 @@ use uuid::Uuid;
 use std::collections::BTreeSet;
 use crate::pathfinder::summary::Summary;
 use crate::db::{self, Connection, GetById, GetAll, Error, Delete, DeleteById, Insert, Update, IntoDbWithId, TryFromDb, IntoDb, StandaloneDbMarker};
-use std::convert::{TryFrom, TryInto};
 use diesel::prelude::*;
 use diesel::Connection as DieselConnection;
-use std::cmp::Ordering;
 
 #[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Deity {
@@ -60,20 +58,20 @@ impl TryFromDb for Deity {
 impl IntoDb for Deity {
     type DBType = (DBDeity, BTreeSet<DBDeityDomain>, BTreeSet<DBDeityWeapon>);
     fn into_db(self) -> (DBDeity, BTreeSet<DBDeityDomain>, BTreeSet<DBDeityWeapon>) {
+        let domains = self.domains.iter()
+            .map(|domain| domain.to_owned().into_db(self.id.to_owned()))
+            .collect();
+
+        let weapons = self.weapons.iter()
+            .map(|weapon| weapon.to_owned().into_db(self.id))
+            .collect();
+
         let deity = DBDeity {
             id: self.id.to_owned(),
             name: self.name,
             description: self.description,
             favored_animals: self.favored_animals,
         };
-
-        let domains = self.domains.into_iter()
-            .map(|domain| domain.into_db(self.id.to_owned()))
-            .collect();
-
-        let weapons = self.weapons.into_iter()
-            .map(|weapon| weapon.into_db(self.id))
-            .collect();
 
         (deity, domains, weapons)
     }
@@ -208,10 +206,10 @@ impl Update for Domain {
             let add_spells = self.spells.difference(&old_spells);
 
             for spell in delete_spells {
-                spell.into_db(self.id.to_owned()).db_delete(conn)?;
+                spell.to_owned().into_db(self.id.to_owned()).db_delete(conn)?;
             }
             for spell in add_spells {
-                spell.into_db(self.id.to_owned()).db_insert(conn)?;
+                spell.to_owned().into_db(self.id.to_owned()).db_insert(conn)?;
             }
 
             domain.db_update(conn)
@@ -254,24 +252,24 @@ pub struct DBDomain {
 impl IntoDb for Domain {
     type DBType = (DBDomain, BTreeSet<DBSubdomain>, BTreeSet<DBDomainSpell>);
     fn into_db(self) -> (DBDomain, BTreeSet<DBSubdomain>, BTreeSet<DBDomainSpell>) {
+        let db_subdomains = self.subdomains.iter()
+            .map(|sd| sd.to_owned().into_db(self.id.to_owned()))
+            .collect();
+
+        let db_spells = self.spells.iter()
+            .map(|(spell, casts)| DBDomainSpell {
+                domain_id: self.id.to_owned(),
+                spell_id: spell.id().to_owned(),
+                casts: *casts,
+            })
+            .collect();
+
         let db_domain = DBDomain {
             id: self.id.to_owned(),
             name: self.name,
             description: self.description,
             power_description: self.power_description,
         };
-
-        let db_subdomains = self.subdomains.into_iter()
-            .map(|sd| sd.into_db(self.id.to_owned()))
-            .collect();
-
-        let db_spells = self.spells.into_iter()
-            .map(|(spell, casts)| DBDomainSpell {
-                domain_id: self.id,
-                spell_id: spell.id().to_owned(),
-                casts,
-            })
-            .collect();
 
         (db_domain, db_subdomains, db_spells)
     }
@@ -378,18 +376,6 @@ impl GetAll for Subdomain {
                     .map(Subdomain::from)
                     .collect()
             })
-    }
-}
-
-impl Insert for Subdomain {
-    fn db_insert(&self, conn: &Connection) -> Result<(), Error> {
-        self.to_owned().db_insert(conn)
-    }
-}
-
-impl Update for Subdomain {
-    fn db_update(&self, conn: &Connection) -> Result<(), Error> {
-        self.to_owned().db_update(conn)
     }
 }
 

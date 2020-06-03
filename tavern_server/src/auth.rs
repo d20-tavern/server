@@ -1,5 +1,4 @@
 use crate::db::{Delete, GetAll, GetById, Insert, Update};
-use crate::status::{Error, Success};
 use crate::{config, db, status};
 use crate::{forms, schema};
 use argon2::{self, Config, ThreadMode, Variant, Version};

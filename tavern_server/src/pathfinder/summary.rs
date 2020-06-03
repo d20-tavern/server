@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 pub use tavern_derive::Summarize;
 use uuid::Uuid;
 
-use crate::db::{self, Connection, GetAll, GetById, Delete, DeleteById, TryFromDb, Error};
+use crate::db::{self, Connection, Delete, DeleteById, TryFromDb, Error, GetById, GetAll};
 
 pub trait Summarize<T> {
     fn id(&self) -> &Uuid;
@@ -98,35 +98,16 @@ impl<T> PartialEq for Summary<T> {
 
 impl<T> Eq for Summary<T> {}
 
-impl<T> TryFromDb for Summary<T> where T: TryFromDb + Summarize<T> {
-    type DBType = T::DBType;
-
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
-        Ok(Self::from(&T::try_from_db(other, conn)?))
-    }
-}
-
-//impl<T> GetAll for Summary<T> where T: Summarize<T> + GetAll + Sized {
-//    fn db_get_all(conn: &Connection) -> Result<Vec<Self>, db::Error> {
-//        T::db_get_all(conn)
-//            .map(|list| {
-//                list.into_iter()
-//                    .map(Self::from)
-//                    .collect()
-//            })
-//    }
-//}
-//
-//impl<T> GetById for Summary<T> where T: Summarize<T> + GetById + Sized {
-//    fn db_get_by_id(id: &Uuid, conn: &Connection) -> Result<Self, db::Error> {
-//        T::db_get_by_id(id, conn)
-//            .map(Self::from)
-//    }
-//}
-
 impl<T> Delete for Summary<T> where T: Summarize<T> + DeleteById + Sized {
     fn db_delete(&self, conn: &Connection) -> Result<(), db::Error> {
         T::db_delete_by_id(self.id(), conn)
     }
 }
 
+impl<T> TryFromDb for Summary<T> where T: Summarize<T> + TryFromDb + Sized {
+    type DBType = T::DBType;
+
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+        Ok(Self::from(&T::try_from_db(other, conn)?))
+    }
+}

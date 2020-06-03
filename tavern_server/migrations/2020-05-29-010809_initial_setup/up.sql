@@ -236,7 +236,7 @@ CREATE TABLE Races (
     name            TEXT        NOT NULL,
     move_speed      SMALLINT    NOT NULL CHECK (move_speed > 0),
     size            Size        NOT NULL,
-    languages       TEXT[]
+    languages       TEXT[]      NOT NULL
 );
 
 --Deity tables
@@ -257,9 +257,9 @@ CREATE TABLE Characters (
     age             SMALLINT    NOT NULL CHECK (age > 0),
     gender          gender      NOT NULL,
     alignment       alignment   NOT NULL,
-    backstory       TEXT,
-    height          SMALLINT    CHECK (height > 0),
-    weight          SMALLINT    CHECK (weight > 0),
+    backstory       TEXT        NOT NULL,
+    height          SMALLINT    NOT NULL CHECK (height > 0),
+    weight          SMALLINT    NOT NULL CHECK (weight > 0),
     size            size        NOT NULL,
 
     strength        SMALLINT    NOT NULL CHECK (strength >= 0     AND strength <= 20),

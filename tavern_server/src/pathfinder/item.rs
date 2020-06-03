@@ -1,18 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::ops::{Bound, Range};
 use uuid::Uuid;
 
 use super::character::{Character, DBCharacter};
-use super::effects::{DBEffect, Effect};
+use super::effects::Effect;
 use super::summary::{Summarize, Summary};
 use super::{DamageType, EquipmentSlot, Links};
 
 use crate::schema::{armor, bags, itemeffects, items, itemsinbags, materials, weapons};
 use diesel::prelude::*;
-use diesel::sql_types::SmallInt;
-use diesel::associations::BelongsTo;
 use diesel_derive_enum::DbEnum;
 use tavern_derive::Display;
 use crate::db::{GetById, GetAll, DeleteById, Delete, Insert, Update, Connection, Error, StandaloneDbMarker, IntoDb, TryFromDb, IntoDbWithId};
@@ -28,7 +26,7 @@ pub struct Item {
     cost: i32,
     weight: f64,
 
-    equip_slot: Option<EquipmentSlot>,
+    pub(crate) equip_slot: Option<EquipmentSlot>,
     consumed_effects: BTreeSet<ItemEffect>,
 }
 
@@ -56,6 +54,10 @@ impl IntoDb for Item {
     type DBType = (DBItem, BTreeSet<DBItemEffect>);
 
     fn into_db(self) -> Self::DBType {
+        let effects = self.consumed_effects.iter()
+            .map(|item| ItemEffect::into_db(item.clone(), self.id))
+            .collect();
+
         let item = DBItem {
             id: self.id.clone(),
             name: self.name,
@@ -64,10 +66,6 @@ impl IntoDb for Item {
             weight: self.weight,
             equip_slot: self.equip_slot
         };
-
-        let effects = self.consumed_effects.into_iter()
-            .map(|item| ItemEffect::into_db(item, self.id))
-            .collect();
 
         (item, effects)
     }
@@ -108,14 +106,14 @@ impl Insert for Item {
 impl Update for Item {
     fn db_update(&self, conn: &Connection) -> Result<(), Error> {
         conn.transaction::<_, Error, _>(|| {
-            let (item, effects) = self.to_owned().into_db();
+            let (item, _effects) = self.to_owned().into_db();
             item.db_update(conn)?;
 
             let old_effects = item.get_effects(conn)?;
             let delete_effects = old_effects.difference(&self.consumed_effects)
-                .map(|item_effect| item_effect.into_db(self.id.to_owned()));
+                .map(|item_effect| item_effect.to_owned().into_db(self.id.to_owned()));
             let add_effects = self.consumed_effects.difference(&old_effects)
-                .map(|item_effect| item_effect.into_db(self.id.to_owned()));
+                .map(|item_effect| item_effect.to_owned().into_db(self.id.to_owned()));
 
             for effect in delete_effects {
                 effect.db_delete(conn)?;
@@ -267,7 +265,7 @@ impl TryFromDb for Bag {
             .map_err(Error::RunQuery)?
             .into_iter()
             .map(|item_in_bag| ItemInBag::try_from_db(item_in_bag, conn))
-            .collect()?;
+            .collect::<Result<_, Error>>()?;
         let mut links = Links::new();
         links.insert("character".to_string(), format!("/characters/{}", other.char_id));
 
@@ -290,17 +288,17 @@ impl IntoDb for Bag {
     type DBType = (DBBag, BTreeSet<DBItemInBag>);
 
     fn into_db(self) -> Self::DBType {
+        let contents = self.contents.iter()
+            .map(|item| item.to_owned().into_db(self.id.to_owned()))
+            .collect();
+
         let db_bag = DBBag {
-            id: self.id.clone(),
+            id: self.id,
             name: self.name,
             char_id: self.character.id().to_owned(),
             item_id: self.item.id().to_owned(),
             capacity: self.capacity,
         };
-
-        let contents = self.contents.into_iter()
-            .map(|item| item.into_db(self.id))
-            .collect();
 
         (db_bag, contents)
     }
@@ -473,7 +471,7 @@ impl Eq for Weapon{}
 #[derive(GetAll, GetById, Delete, DeleteById, Insert, Update)]
 #[table_name = "weapons"]
 #[belongs_to(DBItem, foreign_key = "id")]
-pub(crate) struct DBWeapon {
+pub struct DBWeapon {
     id: Uuid,
     material_id: Option<Uuid>,
     crit_range: (Bound<i32>, Bound<i32>),
@@ -571,7 +569,7 @@ impl IntoDb for Armor {
 #[derive(GetAll, GetById, Delete, DeleteById, Insert, Update)]
 #[table_name = "armor"]
 #[belongs_to(DBItem, foreign_key = "id")]
-pub(crate) struct DBArmor {
+pub struct DBArmor {
     id: Uuid,
     material_id: Option<Uuid>,
     max_dex_bonus: i32,
@@ -645,7 +643,7 @@ impl IntoDb for Material {
 #[derive(GetById, GetAll, Delete, DeleteById, Insert, Update)]
 #[tavern(is_insertable, is_identifiable, is_queryable)]
 #[table_name = "materials"]
-struct DBMaterial {
+pub struct DBMaterial {
     id: Uuid,
     name: String,
     description: String,

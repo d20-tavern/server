@@ -63,9 +63,9 @@
 -        alignment -> Alignment,
 +        gender -> GenderMapping,
 +        alignment -> AlignmentMapping,
-         backstory -> Nullable<Text>,
-         height -> Nullable<Int2>,
-         weight -> Nullable<Int2>,
+         backstory -> Text,
+         height -> Int2,
+         weight -> Int2,
 -        size -> Size,
 +        size -> SizeMapping,
          strength -> Int2,
@@ -169,7 +169,7 @@
          move_speed -> Int2,
 -        size -> Size,
 +        size -> SizeMapping,
-         languages -> Nullable<Array<Text>>,
+         languages -> Array<Text>,
      }
  }
 @@ -497,33 +509,36 @@

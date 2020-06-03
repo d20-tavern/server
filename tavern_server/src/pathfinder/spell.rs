@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::cmp::{Eq, Ord, PartialEq, PartialOrd, Ordering};
+use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
 use std::collections::BTreeSet;
-use std::convert::TryFrom;
 use uuid::Uuid;
 
-use super::effects::{DBEffect, Effect};
-use super::item::{DBItem, Item};
+use super::effects::Effect;
+use super::item::Item;
 use super::summary::{Summarize, Summary};
 use super::{Links, SaveThrow};
 
@@ -13,7 +12,6 @@ use crate::schema::{spells, spellcomponents, spelleffects};
 use crate::db::{self, Connection, Delete, DeleteById, Error, GetAll, GetById, Insert, Update, IntoDbWithId, TryFromDb, IntoDb, StandaloneDbMarker};
 use diesel::prelude::*;
 use diesel_derive_enum::DbEnum;
-use diesel::associations::BelongsTo;
 use diesel::Connection as DieselConnection;
 
 #[derive(Clone, Serialize, Deserialize, Summarize, Ord, PartialOrd, PartialEq, Eq,)]
@@ -100,9 +98,9 @@ impl Update for Spell {
             // Get difference in current and updated components
             let old_components = spell.get_components(conn)?;
             let delete_components = old_components.difference(&self.components)
-                .map(|comp| comp.into_db(self.id.to_owned()));
+                .map(|comp| comp.to_owned().into_db(self.id.to_owned()));
             let add_components = self.components.difference(&old_components)
-                .map(|comp| comp.into_db(self.id.to_owned()));
+                .map(|comp| comp.to_owned().into_db(self.id.to_owned()));
 
             for effect in delete_effects {
                 effect.db_delete(conn)?;
@@ -199,7 +197,7 @@ impl DBSpell {
 impl IntoDb for Spell {
     type DBType = (DBSpell, BTreeSet<DBSpellComponent>, BTreeSet<DBSpellEffect>);
     fn into_db(self) -> (DBSpell, BTreeSet<DBSpellComponent>, BTreeSet<DBSpellEffect>) {
-        let effects = self.effects.into_iter()
+        let effects = self.effects.iter()
             .map(|effect| {
                 DBSpellEffect {
                     spell_id: self.id.to_owned(),
@@ -207,8 +205,8 @@ impl IntoDb for Spell {
                 }
             }).collect();
 
-        let components = self.components.into_iter()
-            .map(|comp| comp.into_db(self.id.to_owned())).collect();
+        let components = self.components.iter()
+            .map(|comp| comp.to_owned().into_db(self.id.to_owned())).collect();
 
         let dbspell = DBSpell {
             id: self.id,
