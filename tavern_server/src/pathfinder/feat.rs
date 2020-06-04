@@ -13,7 +13,11 @@ use crate::db::{TryFromDb, IntoDb, Connection, Error, GetById, GetAll, Delete, D
 use diesel::prelude::*;
 use diesel::associations::BelongsTo;
 use diesel::Connection as DieselConnection;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
+use crate::forms::{self, TryFromForm};
+use warp::Rejection;
+use nebula_form::Form;
+use nebula_status::{Status, StatusCode};
 
 #[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Feat {
@@ -27,6 +31,75 @@ pub struct Feat {
     req_attrs: Attributes,
     req_feats: Vec<Summary<Feat>>,
     effects: BTreeSet<Summary<Effect>>,
+}
+
+impl Feat {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_SHORT_DESC: &'static str = "short-description";
+    const FIELD_LONG_DESC: &'static str = "long-description";
+    const FIELD_REQ_SKILLS: &'static str = "required-skills";
+    const FIELD_REQ_ATTRS: &'static str = "required-attrs";
+    const FIELD_REQ_FEATS: &'static str = "required-feats";
+    const FIELD_EFFECTS: &'static str = "effects";
+}
+
+impl TryFromForm for Feat {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Feat>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Feat::FIELD_NAME)?;
+        let short_description = forms::get_required_form_text_field(&form, Feat::FIELD_SHORT_DESC)?;
+        let long_description = forms::get_optional_form_text_field(&form, Feat::FIELD_LONG_DESC)?;
+        let req_skills: String = forms::get_required_form_text_field(&form, Feat::FIELD_REQ_SKILLS)?;
+        let req_skills: Skills = serde_json::from_str::<BTreeMap<String, i16>>(&req_skills)
+            .map_err(|_| forms::field_is_invalid_error(Feat::FIELD_REQ_SKILLS))?
+            .into_iter()
+            .map::<Result<(Skill, i16), Rejection>, _>(|(skill, modifier)| {
+                let skill = skill.as_str().parse()
+                    .map_err(|e| Rejection::from(Status::with_data(&StatusCode::BAD_REQUEST, e)))?;
+                Ok((skill, modifier))
+            })
+            .collect::<Result<Skills, _>>()?;
+        let req_attrs: String = forms::get_required_form_text_field(&form, Feat::FIELD_REQ_ATTRS)?;
+        let req_attrs: Attributes = serde_json::from_str::<BTreeMap<String, i16>>(&req_attrs)
+            .map_err(|_| forms::field_is_invalid_error(Feat::FIELD_REQ_ATTRS))?
+            .into_iter()
+            .map::<Result<(Attribute, i16), Rejection>, _>(|(attr, modifier)| {
+                let attr = attr.as_str().parse()
+                    .map_err(|e| Rejection::from(Status::with_data(&StatusCode::BAD_REQUEST, e)))?;
+                Ok((attr, modifier))
+            })
+            .collect::<Result<Attributes, _>>()?;
+        let req_feats: String = forms::get_required_form_text_field(&form, Feat::FIELD_REQ_ATTRS)?;
+        let req_feats: Vec<Summary<Feat>> = serde_json::from_str::<Vec<Uuid>>(&req_feats)
+            .map_err(|_| forms::field_is_invalid_error(Feat::FIELD_REQ_FEATS))?
+            .into_iter()
+            .map::<Result<Summary<Feat>, Rejection>, _>(|id| {
+                forms::value_by_id(id, conn)
+            })
+            .collect::<Result<_, _>>()?;
+        let effects: String = forms::get_required_form_text_field(&form, Feat::FIELD_EFFECTS)?;
+        let effects: BTreeSet<Summary<Effect>> = serde_json::from_str::<Vec<Uuid>>(&effects)
+            .map_err(|_| forms::field_is_invalid_error(Feat::FIELD_EFFECTS))?
+            .into_iter()
+            .map::<Result<Summary<Effect>, Rejection>, _>(|id| {
+                forms::value_by_id(id, conn)
+            })
+            .collect::<Result<_, _>>()?;
+
+        let feat = Feat {
+            links: Default::default(),
+            id,
+            name,
+            short_description,
+            long_description,
+            req_skills,
+            req_attrs,
+            req_feats,
+            effects,
+        };
+
+        Ok(feat)
+    }
 }
 
 impl TryFromDb for Feat {

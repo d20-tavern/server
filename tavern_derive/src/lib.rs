@@ -166,7 +166,7 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
             input.ident.span(),
             "this macro only works on enums with all unit variants"
         )
-        .into();
+        .into()
     };
 
     for v in input.variants.pairs() {
@@ -199,6 +199,60 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
                     #(#var,)*
                 };
                 write!(f, "{}", val)
+            }
+        }
+    };
+
+    result.into()
+}
+
+#[proc_macro_derive(FromStr)]
+pub fn impl_enum_from_str(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &input.ident;
+
+    let input = if let Data::Enum(e) = &input.data {
+        e
+    } else {
+        return compile_error_args!(
+            input.ident.span(),
+            "this macro only works on enums with all unit variants"
+        )
+        .into();
+    };
+
+    for v in input.variants.pairs() {
+        match v.value().fields {
+            Fields::Unit => {}
+            _ => {
+                return compile_error_args!(
+                    v.value().ident.span(),
+                    "this macro only works on enums with all unit variants"
+                )
+                .into()
+            }
+        }
+    }
+
+    let var_words = input
+        .variants
+        .pairs()
+        .map(|v| v.value().ident.to_string().to_case(Case::Lower));
+
+    let var = input.variants.pairs().zip(var_words).map(|(v, s)| {
+        let v = &v.value().ident;
+        quote! { if val == #s { std::result::Result::<_,_>::Ok(#name::#v) } else }
+    });
+
+    let error_str = format!("invalid value for {}: {}", name, "{}");
+
+    let result = quote! {
+        impl std::str::FromStr for #name {
+            type Err = crate::status::Error;
+            fn from_str(val: &str) -> std::result::Result<Self, Self::Err> {
+                #(#var)* {
+                    std::result::Result::<_,_>::Err(Self::Err::new(format!(#error_str, val)))
+                }
             }
         }
     };

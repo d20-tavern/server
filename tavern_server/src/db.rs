@@ -1,7 +1,7 @@
-use crate::status;
+use crate::status::{self, Error as StatusError};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use diesel::result;
+use diesel::result::Error as DieselError;
 use lazy_static::lazy_static;
 use std::fmt::{self, Display};
 use std::sync::Arc;
@@ -12,6 +12,7 @@ use warp::filters::BoxedFilter;
 use warp::{Filter, Rejection};
 
 pub use tavern_derive::*;
+use nebula_status::{Status, StatusCode};
 
 #[cfg(test)]
 mod tests {
@@ -51,9 +52,10 @@ lazy_static! {
 
 embed_migrations!();
 
-pub async fn init() -> Result<(), Error> {
-    let mut conn = get_connection().await?;
-    embedded_migrations::run(&conn).map_err(Error::Migration)
+pub async fn init() -> Result<(), String> {
+    let conn = get_connection().await
+        .map_err(|err| format!("error while getting connection: {:#?}", err))?;
+    embedded_migrations::run(&conn).map_err(|err| format!("error while running migrations: {:#?}", err))
 }
 
 async fn get_filter_connection() -> Result<Connection, Rejection> {
@@ -72,6 +74,7 @@ pub struct PostgreSQLOpt {
         long = "db-host",
         env = "TAVERN_DB_HOST",
         help = "the domain name or IP address of the database host"
+
     )]
     host: String,
     #[structopt(
@@ -140,15 +143,32 @@ pub enum Error {
     Connection(::r2d2::Error),
     InvalidValues(Vec<String>),
     Migration(diesel_migrations::RunMigrationsError),
-    RunQuery(result::Error),
+    RunQuery(DieselError),
     NoRows,
     UserUnauthorized(Uuid),
     Other(String),
 }
 
-impl From<result::Error> for Error {
-    fn from(err: result::Error) -> Self {
+impl From<DieselError> for Error {
+    fn from(err: DieselError) -> Self {
         Error::RunQuery(err)
+    }
+}
+
+impl From<Error> for Rejection {
+    fn from(err: Error) -> Self {
+        match err {
+            Error::InvalidValues(list) => {
+                let error = StatusError::new(format!("invalid values for {}", list.join(", ")));
+                Status::with_data(&StatusCode::BAD_REQUEST, error).into()
+            },
+            Error::UserUnauthorized(id) => {
+                Status::new(&StatusCode::UNAUTHORIZED).into()
+            },
+            err => {
+                status::server_error_into_rejection(err.to_string())
+            }
+        }
     }
 }
 

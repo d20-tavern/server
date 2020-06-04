@@ -18,7 +18,14 @@ use crate::schema::{
     subclasses, subclassfeatures,
 };
 use std::cmp::Ordering;
-use crate::db::{Connection, TryFromDb, IntoDb, IntoDbWithId, GetById, GetAll, Delete, DeleteById, Insert, Update, Error};
+use crate::db::{Connection, TryFromDb, IntoDb, IntoDbWithId, GetById, GetAll, Delete, DeleteById, Insert, Update, Error as DBError};
+use crate::forms::{self, TryFromForm};
+use warp::Rejection;
+use nebula_form::Form;
+use crate::auth::FIELD_EMAIL;
+use crate::pathfinder::feat::Feat;
+use crate::status::Error;
+use nebula_status::{Status, StatusCode};
 
 #[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Subclass {
@@ -34,10 +41,60 @@ pub struct Subclass {
     features: Vec<Feature>,
 }
 
+impl Subclass {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+    const FIELD_CASTER_TYPE: &'static str = "caster-type";
+    const FIELD_CASTING_ATTR: &'static str = "casting-attr";
+    const FIELD_FEATURES: &'static str = "features";
+}
+
+impl TryFromForm for Subclass {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Subclass>(this_id, conn)?;
+        let parent_class: Summary<Class> = parent_id
+            .map(|id| forms::value_by_id(id, conn))
+            .transpose()?
+            .ok_or_else(|| {
+                let err = Error::new("invalid URI: expected a parent class ID".to_string());
+                Rejection::from(Status::with_data(&StatusCode::BAD_REQUEST, err))
+            })?;
+
+        let name = forms::get_required_form_text_field(&form, Subclass::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Subclass::FIELD_DESCRIPTION)?;
+        let caster_type = forms::get_optional_form_text_field(&form, Subclass::FIELD_CASTER_TYPE)?;
+        let casting_attr = forms::get_optional_form_text_field(&form, Subclass::FIELD_CASTING_ATTR)?;
+
+        if casting_attr.is_some() != caster_type.is_some() {
+            return Err(forms::field_is_invalid_error(Subclass::FIELD_CASTING_ATTR));
+        }
+
+        let features: String = forms::get_required_form_text_field(&form, Subclass::FIELD_FEATURES)?;
+        let features = serde_json::from_str::<Vec<Uuid>>(&features)
+            .map_err(|_| forms::field_is_invalid_error(Subclass::FIELD_FEATURES))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let subclass = Subclass {
+            links: Default::default(),
+            id,
+            name,
+            description,
+            parent_class,
+            caster_type,
+            casting_attr,
+            features,
+        };
+
+        Ok(subclass)
+    }
+}
+
 impl TryFromDb for Subclass {
     type DBType = DBSubclass;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> {
         let links = Links::new();
         let parent_class = Summary::<Class>::db_get_by_id(&other.class_id, conn)?;
         let features = other.get_features(conn)?;
@@ -91,10 +148,10 @@ pub struct DBSubclass {
 }
 
 impl DBSubclass {
-    fn get_features(&self, conn: &Connection) -> Result<Vec<Feature>, Error> {
+    fn get_features(&self, conn: &Connection) -> Result<Vec<Feature>, DBError> {
         DBSubclassFeature::belonging_to(self)
             .load::<DBSubclassFeature>(conn)
-            .map_err(Error::RunQuery)?
+            .map_err(DBError::RunQuery)?
             .into_iter()
             .map(|f| Feature::db_get_by_id(&f.feature_id, conn))
             .collect()
@@ -128,10 +185,111 @@ pub struct Class {
     skills_attr: Attribute,
 }
 
+impl Class {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+    const FIELD_HIT_DIE: &'static str = "hit-die";
+    const FIELD_STARTING_WEALTH: &'static str = "starting-wealth";
+    const FIELD_BAB_PER_LVL: &'static str = "bab-per-level";
+    const FIELD_SKILLS_PER_LVL: &'static str = "skills-per-level";
+    const FIELD_SKILLS_ATTR: &'static str = "skills-attr";
+    const FIELD_PROF_ARMOR_CLASS: &'static str = "prof-armor-class";
+    const FIELD_PROF_ARMOR: &'static str = "prof-armor";
+    const FIELD_NOT_PROF_ARMOR: &'static str = "not-prof-armor";
+    const FIELD_PROF_WEAPON_CLASS: &'static str = "prof-weapon-class";
+    const FIELD_PROF_WEAPON: &'static str = "prof-weapon";
+    const FIELD_NOT_PROF_WEAPON: &'static str = "not-prof-weapon";
+}
+
+impl TryFromForm for Class {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Class>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Class::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Class::FIELD_DESCRIPTION)?;
+        let hit_die = forms::get_required_form_text_field(&form, Class::FIELD_HIT_DIE)?;
+        let starting_wealth = forms::get_required_form_text_field(&form, Class::FIELD_STARTING_WEALTH)?;
+        let bab_per_level = forms::get_required_form_text_field(&form, Class::FIELD_BAB_PER_LVL)?;
+        let skills_per_level = forms::get_required_form_text_field(&form, Class::FIELD_SKILLS_PER_LVL)?;
+        let skills_attr = forms::get_required_form_text_field(&form, Class::FIELD_SKILLS_ATTR)?;
+
+        let prof_armor_class: String = forms::get_required_form_text_field(&form, Class::FIELD_PROF_ARMOR_CLASS)?;
+        let prof_armor_class: BTreeSet<ArmorClass> = serde_json::from_str::<Vec<String>>(&prof_armor_class)
+            .map_err(|_| forms::field_is_invalid_error(Class::FIELD_PROF_ARMOR_CLASS))?
+            .into_iter()
+            .map(|val| {
+                val.as_str().parse()
+                    .map_err(|_| forms::field_is_invalid_error(Class::FIELD_PROF_ARMOR_CLASS))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let prof_armor: String = forms::get_required_form_text_field(&form, Class::FIELD_PROF_ARMOR)?;
+        let prof_armor: BTreeSet<Summary<Armor>> = serde_json::from_str::<Vec<Uuid>>(&prof_armor)
+            .map_err(|_| forms::field_is_invalid_error(Class::FIELD_PROF_ARMOR))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let not_prof_armor: String = forms::get_required_form_text_field(&form, Class::FIELD_NOT_PROF_ARMOR)?;
+        let not_prof_armor: BTreeSet<Summary<Armor>> = serde_json::from_str::<Vec<Uuid>>(&not_prof_armor)
+            .map_err(|_| forms::field_is_invalid_error(Class::FIELD_NOT_PROF_ARMOR))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let prof_weapon_class: String = forms::get_required_form_text_field(&form, Class::FIELD_PROF_WEAPON_CLASS)?;
+        let prof_weapon_class: BTreeSet<WeaponClass> = serde_json::from_str::<Vec<String>>(&prof_weapon_class)
+            .map_err(|_| forms::field_is_invalid_error(Class::FIELD_PROF_WEAPON_CLASS))?
+            .into_iter()
+            .map(|val| {
+                val.as_str().parse()
+                    .map_err(|_| forms::field_is_invalid_error(Class::FIELD_PROF_WEAPON_CLASS))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let prof_weapon: String = forms::get_required_form_text_field(&form, Class::FIELD_PROF_WEAPON)?;
+        let prof_weapon: BTreeSet<Summary<Weapon>> = serde_json::from_str::<Vec<Uuid>>(&prof_weapon)
+            .map_err(|_| forms::field_is_invalid_error(Class::FIELD_PROF_WEAPON))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let not_prof_weapon: String = forms::get_required_form_text_field(&form, Class::FIELD_NOT_PROF_WEAPON)?;
+        let not_prof_weapon: BTreeSet<Summary<Weapon>> = serde_json::from_str::<Vec<Uuid>>(&not_prof_weapon)
+            .map_err(|_| forms::field_is_invalid_error(Class::FIELD_NOT_PROF_WEAPON))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let class = Class {
+            links: Default::default(),
+            id,
+            weapon_proficiencies: WeaponProficiencies {
+                classes: prof_weapon_class,
+                prof: prof_weapon,
+                not_prof: not_prof_weapon,
+            },
+            armor_proficiencies: ArmorProficiencies {
+                classes: prof_armor_class,
+                prof: prof_armor,
+                not_prof: not_prof_armor,
+            },
+            name,
+            description,
+            hit_die,
+            starting_wealth,
+            bab_per_level,
+            skills_per_level,
+            skills_attr,
+        };
+
+        Ok(class)
+    }
+}
+
 impl TryFromDb for Class {
     type DBType = DBClass;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let links = Links::new();
         let weapon_proficiencies = other.get_weapon_proficiencies(conn)?;
         let armor_proficiencies = other.get_armor_proficiencies(conn)?;
@@ -209,7 +367,7 @@ pub struct DBClass {
 }
 
 impl DBClass {
-    fn get_weapon_proficiencies(&self, conn: &Connection) -> Result<WeaponProficiencies, Error> {
+    fn get_weapon_proficiencies(&self, conn: &Connection) -> Result<WeaponProficiencies, DBError> {
         let classes = {
             let result = DBClassProficientWeaponClass::belonging_to(self)
                 .first(conn);
@@ -220,7 +378,7 @@ impl DBClass {
                         class_id: self.id.clone(),
                         weapon_classes: vec![],
                     },
-                    err => return Err(Error::RunQuery(err)),
+                    err => return Err(DBError::RunQuery(err)),
                 }
             }
         };
@@ -228,19 +386,19 @@ impl DBClass {
         let prof = {
             DBClassProficientWeapon::belonging_to(self)
                 .load::<DBClassProficientWeapon>(conn)
-                .map_err(Error::RunQuery)?
+                .map_err(DBError::RunQuery)?
         };
 
         let not_prof = {
             DBClassNotProficientWeapon::belonging_to(self)
                 .load::<DBClassNotProficientWeapon>(conn)
-                .map_err(Error::RunQuery)?
+                .map_err(DBError::RunQuery)?
         };
 
         WeaponProficiencies::try_from_db((classes, prof, not_prof), conn)
     }
 
-    fn get_armor_proficiencies(&self, conn: &Connection) -> Result<ArmorProficiencies, Error> {
+    fn get_armor_proficiencies(&self, conn: &Connection) -> Result<ArmorProficiencies, DBError> {
         let classes = {
             let result = DBClassProficientArmorClass::belonging_to(self)
                 .first(conn);
@@ -251,7 +409,7 @@ impl DBClass {
                         class_id: self.id.clone(),
                         armor_classes: vec![],
                     },
-                    err => return Err(Error::RunQuery(err)),
+                    err => return Err(DBError::RunQuery(err)),
                 }
             }
         };
@@ -259,13 +417,13 @@ impl DBClass {
         let prof = {
             DBClassProficientArmor::belonging_to(self)
                 .load::<DBClassProficientArmor>(conn)
-                .map_err(Error::RunQuery)?
+                .map_err(DBError::RunQuery)?
         };
 
         let not_prof = {
             DBClassNotProficientArmor::belonging_to(self)
                 .load::<DBClassNotProficientArmor>(conn)
-                .map_err(Error::RunQuery)?
+                .map_err(DBError::RunQuery)?
         };
 
         ArmorProficiencies::try_from_db((classes, prof, not_prof), conn)
@@ -304,6 +462,21 @@ pub struct Feature {
     description: String,
 }
 
+impl Feature {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+}
+
+impl TryFromForm for Feature {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Feature>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Feature::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Feature::FIELD_DESCRIPTION)?;
+
+        Ok(Feature { id, name, description })
+    }
+}
+
 // This redundancy is due to the use of Summary<Feature> and the automatic
 // impls of the traits defined in crate::db. This should make the type system
 // happy and still provide those automatic impls.
@@ -311,7 +484,7 @@ pub struct Feature {
 impl TryFromDb for Feature {
     type DBType = DBFeature;
 
-    fn try_from_db(other: Self::DBType, _conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, _conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let feature = Feature {
             id: other.id,
             name: other.name,
@@ -366,15 +539,15 @@ pub struct ArmorProficiencies {
 impl TryFromDb for ArmorProficiencies {
     type DBType = (DBClassProficientArmorClass, Vec<DBClassProficientArmor>, Vec<DBClassNotProficientArmor>);
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let (classes, prof, not_prof) = other;
         let classes = classes.armor_classes.into_iter().collect();
         let prof = prof.into_iter()
             .map(|pa| Summary::<Armor>::db_get_by_id(&pa.armor_id, conn))
-            .collect::<Result<_, Error>>()?;
+            .collect::<Result<_, DBError>>()?;
         let not_prof = not_prof.into_iter()
             .map(|npa| Summary::<Armor>::db_get_by_id(&npa.armor_id, conn))
-            .collect::<Result<_, Error>>()?;
+            .collect::<Result<_, DBError>>()?;
 
         Ok(ArmorProficiencies{ classes, prof, not_prof })
     }
@@ -460,15 +633,15 @@ pub struct WeaponProficiencies {
 impl TryFromDb for WeaponProficiencies {
     type DBType = (DBClassProficientWeaponClass, Vec<DBClassProficientWeapon>, Vec<DBClassNotProficientWeapon>);
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let (classes, prof, not_prof) = other;
         let classes = classes.weapon_classes.into_iter().collect();
         let prof = prof.into_iter()
             .map(|pw| Summary::<Weapon>::db_get_by_id(&pw.weapon_id, conn))
-            .collect::<Result<_, Error>>()?;
+            .collect::<Result<_, DBError>>()?;
         let not_prof = not_prof.into_iter()
             .map(|npw| Summary::<Weapon>::db_get_by_id(&npw.weapon_id, conn))
-            .collect::<Result<_, Error>>()?;
+            .collect::<Result<_, DBError>>()?;
 
         Ok(WeaponProficiencies{ classes, prof, not_prof })
     }

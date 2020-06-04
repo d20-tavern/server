@@ -9,6 +9,10 @@ use diesel::result::Error as DieselError;
 
 use crate::schema::{attributeunits, characterunits, combatunits, effects, miscunits, skillunits};
 use crate::db::{Connection, TryFromDb, IntoDb, Error, GetAll, GetById, Delete, DeleteById, Insert, Update};
+use crate::forms::{self, TryFromForm};
+use warp::Rejection;
+use nebula_form::Form;
+use std::collections::BTreeMap;
 
 #[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Effect {
@@ -23,6 +27,87 @@ pub struct Effect {
     char_effects: CharacterStats,
     combat_effects: CombatStats,
     misc_effect: Option<String>,
+}
+
+impl Effect {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_SHORT_DESC: &'static str = "short-description";
+    const FIELD_LONG_DESC: &'static str = "long-description";
+    const FIELD_ATTR_EFFECTS: &'static str = "attr-effects";
+    const FIELD_SKILL_EFFECTS: &'static str = "skill-effects";
+    const FIELD_CHAR_EFFECTS: &'static str = "char-effects";
+    const FIELD_COMBAT_EFFECTS: &'static str = "combat-effects";
+    const FIELD_MISC_EFFECT: &'static str = "misc-effect";
+}
+
+impl TryFromForm for Effect {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Effect>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Effect::FIELD_NAME)?;
+        let short_description = forms::get_required_form_text_field(&form, Effect::FIELD_SHORT_DESC)?;
+        let long_description = forms::get_optional_form_text_field(&form, Effect::FIELD_LONG_DESC)?;
+
+        let attr_effects: String = forms::get_required_form_text_field(&form, Effect::FIELD_ATTR_EFFECTS)?;
+        let attr_effects: Attributes = serde_json::from_str::<BTreeMap<String, i16>>(&attr_effects)
+            .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_ATTR_EFFECTS))?
+            .into_iter()
+            .map(|(attr_string, modifier)| {
+                attr_string.as_str().parse()
+                    .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_ATTR_EFFECTS))
+                    .map(|attr| (attr, modifier))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let skill_effects: String = forms::get_required_form_text_field(&form, Effect::FIELD_SKILL_EFFECTS)?;
+        let skill_effects: Skills = serde_json::from_str::<BTreeMap<String, i16>>(&skill_effects)
+            .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_SKILL_EFFECTS))?
+            .into_iter()
+            .map(|(skill_string, modifier)| {
+                skill_string.as_str().parse()
+                    .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_SKILL_EFFECTS))
+                    .map(|skill| (skill, modifier))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let combat_effects: String = forms::get_required_form_text_field(&form, Effect::FIELD_COMBAT_EFFECTS)?;
+        let combat_effects: CombatStats = serde_json::from_str::<BTreeMap<String, i16>>(&combat_effects)
+            .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_COMBAT_EFFECTS))?
+            .into_iter()
+            .map(|(combat_string, modifier)| {
+                combat_string.as_str().parse()
+                    .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_COMBAT_EFFECTS))
+                    .map(|combat| (combat, modifier))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let char_effects: String = forms::get_required_form_text_field(&form, Effect::FIELD_CHAR_EFFECTS)?;
+        let char_effects: CharacterStats = serde_json::from_str::<BTreeMap<String, i16>>(&char_effects)
+            .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_CHAR_EFFECTS))?
+            .into_iter()
+            .map(|(char_string, modifier)| {
+                char_string.as_str().parse()
+                    .map_err(|_| forms::field_is_invalid_error(Effect::FIELD_CHAR_EFFECTS))
+                    .map(|char| (char, modifier))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let misc_effect: Option<String> = forms::get_optional_form_text_field(&form, Effect::FIELD_MISC_EFFECT)?;
+
+        let effect = Effect {
+            links: Default::default(),
+            id,
+            name,
+            short_description,
+            long_description,
+            attr_effects,
+            skill_effects,
+            char_effects,
+            combat_effects,
+            misc_effect,
+        };
+
+        Ok(effect)
+    }
 }
 
 impl TryFromDb for Effect {

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
 use std::ops::{Bound, Range};
 use uuid::Uuid;
 
@@ -12,28 +12,80 @@ use super::{DamageType, EquipmentSlot, Links};
 use crate::schema::{armor, bags, itemeffects, items, itemsinbags, materials, weapons};
 use diesel::prelude::*;
 use diesel_derive_enum::DbEnum;
-use tavern_derive::Display;
-use crate::db::{GetById, GetAll, DeleteById, Delete, Insert, Update, Connection, Error, StandaloneDbMarker, IntoDb, TryFromDb, IntoDbWithId};
+use tavern_derive::{Display, FromStr};
+use crate::db::{GetById, GetAll, DeleteById, Delete, Insert, Update, Connection, Error as DBError, StandaloneDbMarker, IntoDb, TryFromDb, IntoDbWithId};
 use diesel::Connection as DieselConnection;
+use crate::forms::{self, TryFromForm};
+use warp::Rejection;
+use nebula_form::Form;
+use nebula_status::{Status, StatusCode};
+use crate::status::Error;
+use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Summarize, Clone)]
 pub struct Item {
-    links: Links,
-    id: Uuid,
+    pub links: Links,
+    pub id: Uuid,
 
-    name: String,
-    description: String,
-    cost: i32,
-    weight: f64,
+    pub name: String,
+    pub description: String,
+    pub cost: i32,
+    pub weight: f64,
 
-    pub(crate) equip_slot: Option<EquipmentSlot>,
-    consumed_effects: BTreeSet<ItemEffect>,
+    pub equip_slot: Option<EquipmentSlot>,
+    pub consumed_effects: BTreeSet<ItemEffect>,
+}
+
+impl Item {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+    const FIELD_COST: &'static str = "cost";
+    const FIELD_WEIGHT: &'static str = "weight";
+    const FIELD_EQUIP_SLOT: &'static str = "equipment-slot";
+    const FIELD_EFFECTS: &'static str = "effects";
+}
+
+impl TryFromForm for Item {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Item>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Item::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Item::FIELD_DESCRIPTION)?;
+        let cost = forms::get_required_form_text_field(&form, Item::FIELD_COST)?;
+        let weight = forms::get_required_form_text_field(&form, Item::FIELD_WEIGHT)?;
+        let equip_slot = forms::get_optional_form_text_field(&form, Item::FIELD_EQUIP_SLOT)?;
+        let effects: String = forms::get_required_form_text_field(&form, Item::FIELD_EFFECTS)?;
+        let consumed_effects = serde_json::from_str::<BTreeMap<Uuid, bool>>(&effects)
+            .map_err(|_| forms::field_is_invalid_error(Item::FIELD_EFFECTS))?
+            .into_iter()
+            .map::<Result<ItemEffect, Rejection>, _>(|(id, is_permanent)| {
+                let effect = forms::value_by_id(id, conn)?;
+                let ie = ItemEffect {
+                    effect,
+                    is_permanent,
+                };
+                Ok(ie)
+            })
+            .collect::<Result<BTreeSet<ItemEffect>, Rejection>>()?;
+
+        let item = Item {
+            id,
+            links: Links::new(),
+            name,
+            description,
+            cost,
+            weight,
+            equip_slot,
+            consumed_effects,
+        };
+
+        Ok(item)
+    }
 }
 
 impl TryFromDb for Item {
     type DBType = DBItem;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let mut links = Links::new();
         let consumed_effects = other.get_effects(conn)?;
         let item = Item {
@@ -72,27 +124,27 @@ impl IntoDb for Item {
 }
 
 impl Delete for Item {
-    fn db_delete(&self, conn: &Connection) -> Result<(), Error> {
+    fn db_delete(&self, conn: &Connection) -> Result<(), DBError> {
         Self::db_delete_by_id(&self.id, conn)
     }
 }
 
 impl DeleteById for Item {
-    fn db_delete_by_id(id: &Uuid, conn: &Connection) -> Result<(), Error> {
-        conn.transaction::<_, Error, _>(|| {
+    fn db_delete_by_id(id: &Uuid, conn: &Connection) -> Result<(), DBError> {
+        conn.transaction::<_, DBError, _>(|| {
             use crate::schema::itemeffects::dsl::*;
             DBItem::db_delete_by_id(id, conn)?;
             diesel::delete(itemeffects.filter(item_id.eq(id)))
                 .execute(conn)
-                .map_err(Error::RunQuery)
+                .map_err(DBError::RunQuery)
                 .map(|_| ())
         })
     }
 }
 
 impl Insert for Item {
-    fn db_insert(&self, conn: &Connection) -> Result<(), Error> {
-        conn.transaction::<_, Error, _>(|| {
+    fn db_insert(&self, conn: &Connection) -> Result<(), DBError> {
+        conn.transaction::<_, DBError, _>(|| {
             let (item, effects) = self.to_owned().into_db();
             item.db_insert(conn)?;
             for effect in effects.into_iter() {
@@ -104,8 +156,8 @@ impl Insert for Item {
 }
 
 impl Update for Item {
-    fn db_update(&self, conn: &Connection) -> Result<(), Error> {
-        conn.transaction::<_, Error, _>(|| {
+    fn db_update(&self, conn: &Connection) -> Result<(), DBError> {
+        conn.transaction::<_, DBError, _>(|| {
             let (item, _effects) = self.to_owned().into_db();
             item.db_update(conn)?;
 
@@ -161,10 +213,10 @@ pub struct DBItem {
 }
 
 impl DBItem {
-    fn get_effects(&self, conn: &Connection) -> Result<BTreeSet<ItemEffect>, Error> {
+    fn get_effects(&self, conn: &Connection) -> Result<BTreeSet<ItemEffect>, DBError> {
         DBItemEffect::belonging_to(self)
             .load::<DBItemEffect>(conn)
-            .map_err(Error::RunQuery)?
+            .map_err(DBError::RunQuery)?
             .into_iter()
             .map(|item_effect| ItemEffect::try_from_db(item_effect, conn))
             .collect()
@@ -200,7 +252,7 @@ pub struct ItemEffect {
 impl TryFromDb for ItemEffect {
     type DBType = DBItemEffect;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let effect = Summary::<Effect>::db_get_by_id(&other.effect_id, conn)?;
         let item_effect = ItemEffect {
             effect,
@@ -249,6 +301,7 @@ pub struct Bag {
 
 impl Bag {
     fn update_desc(&mut self) {
+        // TODO: Actually calculate total weight
         let size: i32 = self.contents.iter().map(|item| item.count).sum();
         self.description = format!("{} {}/{}", self.name, size, self.capacity);
     }
@@ -257,15 +310,15 @@ impl Bag {
 impl TryFromDb for Bag {
     type DBType = DBBag;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let item = Summary::<Item>::db_get_by_id(&other.item_id, conn)?;
         let character = Summary::<Character>::db_get_by_id(&other.char_id, conn)?;
         let contents = DBItemInBag::belonging_to(&other)
             .load::<DBItemInBag>(conn)
-            .map_err(Error::RunQuery)?
+            .map_err(DBError::RunQuery)?
             .into_iter()
             .map(|item_in_bag| ItemInBag::try_from_db(item_in_bag, conn))
-            .collect::<Result<_, Error>>()?;
+            .collect::<Result<_, DBError>>()?;
         let mut links = Links::new();
         links.insert("character".to_string(), format!("/characters/{}", other.char_id));
 
@@ -305,6 +358,7 @@ impl IntoDb for Bag {
 }
 
 #[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(GetById, GetAll, Delete, DeleteById, Insert, Update)]
 #[table_name = "bags"]
 #[belongs_to(DBCharacter, foreign_key = "char_id")]
 pub struct DBBag {
@@ -324,7 +378,7 @@ pub struct ItemInBag {
 impl TryFromDb for ItemInBag {
     type DBType = DBItemInBag;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let count = other.count;
         let item = Summary::<Item>::db_get_by_id(&other.item_id, conn)?;
         let bag_item = ItemInBag {
@@ -358,7 +412,7 @@ pub struct DBItemInBag {
 }
 
 #[derive(
-    Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, DbEnum, Debug,
+    Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, DbEnum, Debug, FromStr
 )]
 pub enum WeaponClass {
     Axes,
@@ -381,7 +435,7 @@ pub enum WeaponClass {
 }
 
 #[derive(
-    Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, DbEnum, Debug,
+    Serialize, Deserialize, Display, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, DbEnum, Debug, FromStr
 )]
 pub enum ArmorClass {
     Light,
@@ -400,10 +454,62 @@ pub struct Weapon {
     weapon_type: WeaponClass,
 }
 
+impl Weapon {
+    const FIELD_ITEM_ID: &'static str = "item-id";
+    const FIELD_MATERIAL_ID: &'static str = "material-id";
+    const FIELD_CRIT_MIN: &'static str = "crit-min";
+    const FIELD_CRIT_MAX: &'static str = "crit-max";
+    const FIELD_DAMAGE: &'static str = "damage";
+    const FIELD_DAMAGE_TYPE: &'static str = "damage-type";
+    const FIELD_WEAPON_TYPE: &'static str = "weapon-type";
+}
+
+impl TryFromForm for Weapon {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Weapon>(this_id, conn)?;
+        let item_id = forms::get_required_form_text_field(&form, Weapon::FIELD_ITEM_ID)?;
+        let item = forms::value_by_id(item_id, conn)?;
+        let material = forms::get_optional_form_text_field(&form, Weapon::FIELD_MATERIAL_ID)?
+            .map(|id| forms::value_by_id(id, conn))
+            .transpose()?;
+        let crit_min: i32 = forms::get_required_form_text_field(&form, Weapon::FIELD_CRIT_MIN)?;
+        let crit_max: i32 = forms::get_required_form_text_field(&form, Weapon::FIELD_CRIT_MAX)?;
+        let crit_range = std::ops::Range {
+            start: crit_min,
+            end: crit_max + 1,
+        };
+        let damage: String = forms::get_required_form_text_field(&form, Weapon::FIELD_DAMAGE)?;
+        let damage = serde_json::from_str(&damage)
+            .map_err(|_| forms::field_is_invalid_error(Weapon::FIELD_DAMAGE))?;
+        let damage_type: String = forms::get_required_form_text_field(&form, Weapon::FIELD_DAMAGE_TYPE)?;
+        let damage_type: Vec<DamageType> = serde_json::from_str::<Vec<String>>(&damage_type)
+            .map_err::<Rejection, _>(|_| forms::field_is_invalid_error(Weapon::FIELD_DAMAGE_TYPE))?
+            .into_iter()
+            .map(|val| val.as_str().parse())
+            .collect::<Result<Vec<DamageType>, <DamageType as FromStr>::Err>>()
+            .map_err(|err| {
+                Rejection::from(Status::with_data(&StatusCode::BAD_REQUEST, err))
+            })?;
+        let weapon_type: WeaponClass = forms::get_required_form_text_field(&form, Weapon::FIELD_WEAPON_TYPE)?;
+
+        let weapon = Weapon {
+            item,
+            material,
+            crit_range,
+            damage,
+            damage_type,
+            weapon_type
+        };
+
+        Ok(weapon)
+
+    }
+}
+
 impl TryFromDb for Weapon {
     type DBType = DBWeapon;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let item = Item::db_get_by_id(&other.id, conn)?;
         let material = other.material_id.map(|id| Material::db_get_by_id(&id, conn)).transpose()?;
         let crit_range = {
@@ -411,12 +517,12 @@ impl TryFromDb for Weapon {
             let start = match start {
                 Bound::Included(val) => val,
                 Bound::Excluded(val) => val - 1,
-                Bound::Unbounded => return Err(Error::Other("start cannot be unbounded".to_string()))
+                Bound::Unbounded => return Err(DBError::Other("start cannot be unbounded".to_string()))
             };
             let end = match end {
                 Bound::Included(val) => val,
                 Bound::Excluded(val) => val - 1,
-                Bound::Unbounded => return Err(Error::Other("end cannot be unbounded".to_string()))
+                Bound::Unbounded => return Err(DBError::Other("end cannot be unbounded".to_string()))
             };
             Range { start, end }
         };
@@ -530,10 +636,48 @@ pub struct Armor {
     armor_type: ArmorClass,
 }
 
+impl Armor {
+    const FIELD_ITEM_ID: &'static str = "item-id";
+    const FIELD_MATERIAL_ID: &'static str = "material-id";
+    const FIELD_MAX_DEX: &'static str = "max-dex-bonus";
+    const FIELD_AC: &'static str = "ac";
+    const FIELD_SPELL_FAILURE: &'static str = "spell-failure";
+    const FIELD_CHECK_PENALTY: &'static str = "check-penalty";
+    const FIELD_ARMOR_TYPE: &'static str = "armor-type";
+}
+
+impl TryFromForm for Armor {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Armor>(this_id, conn)?;
+        let item_id = forms::get_required_form_text_field(&form, Armor::FIELD_ITEM_ID)?;
+        let item = forms::value_by_id(item_id, conn)?;
+        let material = forms::get_optional_form_text_field(&form, Armor::FIELD_MATERIAL_ID)?
+            .map(|id| forms::value_by_id(id, conn))
+            .transpose()?;
+        let max_dex_bonus = forms::get_required_form_text_field(&form, Armor::FIELD_MAX_DEX)?;
+        let ac = forms::get_required_form_text_field(&form, Armor::FIELD_AC)?;
+        let spell_failure = forms::get_required_form_text_field(&form, Armor::FIELD_SPELL_FAILURE)?;
+        let check_penalty = forms::get_required_form_text_field(&form, Armor::FIELD_CHECK_PENALTY)?;
+        let armor_type = forms::get_required_form_text_field(&form, Armor::FIELD_ARMOR_TYPE)?;
+
+        let armor = Armor {
+            item,
+            material,
+            max_dex_bonus,
+            ac,
+            spell_failure,
+            check_penalty,
+            armor_type,
+        };
+
+        Ok(armor)
+    }
+}
+
 impl TryFromDb for Armor {
     type DBType = DBArmor;
 
-    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let item = Item::db_get_by_id(&other.id, conn)?;
         let material = other.material_id.map(|id| Material::db_get_by_id(&id, conn)).transpose()?;
         let armor = Armor {
@@ -607,10 +751,38 @@ pub struct Material {
     hardness: Option<i32>,
 }
 
+impl Material {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+    const FIELD_HP_PER_INCH: &'static str = "hp-per-inch";
+    const FIELD_HARDNESS: &'static str = "hardness";
+}
+
+impl TryFromForm for Material {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Material>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Material::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Material::FIELD_DESCRIPTION)?;
+        let hp_per_inch = forms::get_optional_form_text_field(&form, Material::FIELD_HP_PER_INCH)?;
+        let hardness = forms::get_optional_form_text_field(&form, Material::FIELD_HARDNESS)?;
+
+        let material = Material {
+            id,
+            links: Links::new(),
+            name,
+            description,
+            hp_per_inch,
+            hardness
+        };
+
+        Ok(material)
+    }
+}
+
 impl TryFromDb for Material {
     type DBType = DBMaterial;
 
-    fn try_from_db(other: Self::DBType, _conn: &Connection) -> Result<Self, Error> where Self: Sized {
+    fn try_from_db(other: Self::DBType, _conn: &Connection) -> Result<Self, DBError> where Self: Sized {
         let mut links = Links::new();
         links.insert("self".to_string(), format!("/materials/{}", other.id));
         let material = Material {
