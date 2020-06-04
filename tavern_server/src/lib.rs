@@ -1,3 +1,9 @@
+// This macro_use is necessary until diesel 2.0
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
+
 use warp::filters::BoxedFilter;
 use warp::{Filter, Reply};
 
@@ -5,6 +11,8 @@ pub mod auth;
 pub mod config;
 pub mod db;
 pub mod forms;
+pub mod pathfinder;
+mod schema;
 pub mod status;
 
 /// Generate a warp Filter containing the full server and return it.

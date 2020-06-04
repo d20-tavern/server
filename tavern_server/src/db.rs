@@ -1,16 +1,17 @@
-use crate::config;
 use crate::status;
-use futures::executor::block_on;
+use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::result;
 use lazy_static::lazy_static;
-use sqlx::pool::PoolConnection;
-use sqlx::{Executor, PgConnection, PgPool};
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
+use std::fmt::{self, Display};
 use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 use warp::filters::BoxedFilter;
 use warp::{Filter, Rejection};
+
+pub use tavern_derive::*;
 
 #[cfg(test)]
 mod tests {
@@ -24,6 +25,7 @@ mod tests {
             database: String::from("test"),
             user: String::from("foo"),
             pass: String::from("bar"),
+            max_connections: 5,
         };
 
         let conn_string = ps_opt.to_string();
@@ -32,11 +34,6 @@ mod tests {
             conn_string.as_str(),
             "postgresql://foo:bar@host.example.com:5432/test"
         );
-        //assert!(conn_string.contains("host=host.example.com"));
-        //assert!(conn_string.contains("port=5432"));
-        //assert!(conn_string.contains("dbname=test"));
-        //assert!(conn_string.contains("user=foo"));
-        //assert!(conn_string.contains("password=bar"));
     }
     #[test]
     fn postgres_database_init() {
@@ -44,50 +41,29 @@ mod tests {
     }
 }
 
-#[derive(Debug)]
-pub enum Error {
-    Connection(sqlx::Error),
-    Transaction(sqlx::Error),
-    LoadQuery(std::str::Utf8Error),
-    RunQuery(sqlx::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Connection(err) => write!(f, "{}", err.to_string()),
-            Error::Transaction(err) => write!(f, "{}", err.to_string()),
-            Error::LoadQuery(err) => write!(f, "{}", err.to_string()),
-            Error::RunQuery(err) => write!(f, "{}", err.to_string()),
-        }
-    }
-}
-
-pub async fn init() -> Result<(), Error> {
-    let mut conn: Connection = get_connection().await?;
-    let sql = std::str::from_utf8(include_bytes!("db_tables.sql"))
-        .map_err(Error::LoadQuery)?;
-    conn.execute(sql)
-        .await
-        .map_err(Error::RunQuery)?;
-    Ok(())
-}
-
-// Error codes come from https://www.postgresql.org/docs/10/errcodes-appendix.html
-pub const PG_ERROR_CHECK_VIOLATION: &str = "23514";
-pub const PG_ERROR_FOREIGN_KEY_VIOLATION: &str = "23503";
-pub const PG_ERROR_NOT_NULL_VIOLATION: &str = "23502";
-pub const PG_ERROR_RESTRICT_VIOLATION: &str = "23001";
-pub const PG_ERROR_UNIQUE_VIOLATION: &str = "23505";
-
-pub type Connection = PoolConnection<PgConnection>;
-
 lazy_static! {
-    static ref POOL: Arc<RwLock<PgPool>> = {
-        let pool = config::config().database.clone().try_into().unwrap();
+    static ref POOL: Arc<RwLock<Pool<TavernConnectionManager>>> = {
+        let pool = PostgreSQLOpt::from_args().into();
         let lock = RwLock::new(pool);
         Arc::new(lock)
     };
+}
+
+embed_migrations!();
+
+pub async fn init() -> Result<(), Error> {
+    let mut conn = get_connection().await?;
+    embedded_migrations::run(&conn).map_err(Error::Migration)
+}
+
+async fn get_filter_connection() -> Result<Connection, Rejection> {
+    get_connection()
+        .await
+        .map_err(|err| status::server_error_into_rejection(err.to_string()))
+}
+
+pub fn conn_filter() -> BoxedFilter<(Connection,)> {
+    warp::any().and_then(get_filter_connection).boxed()
 }
 
 #[derive(StructOpt, Clone, Debug)]
@@ -123,12 +99,25 @@ pub struct PostgreSQLOpt {
         help = "the password for the database user"
     )]
     pass: String,
+    #[structopt(
+        long = "db-max-conn",
+        env = "TAVERN_DB_MAX_CONNECTIONS",
+        help = "the maximum number of database connections",
+        default_value = "10"
+    )]
+    max_connections: u32,
 }
 
-impl TryFrom<PostgreSQLOpt> for PgPool {
-    type Error = sqlx::Error;
-    fn try_from(opt: PostgreSQLOpt) -> Result<Self, Self::Error> {
-        block_on(PgPool::new(opt.to_string().as_ref()))
+pub type TavernConnectionManager = ConnectionManager<PgConnection>;
+pub type Connection = PooledConnection<TavernConnectionManager>;
+
+impl From<PostgreSQLOpt> for Pool<TavernConnectionManager> {
+    fn from(opt: PostgreSQLOpt) -> Self {
+        let manager = TavernConnectionManager::new(opt.to_string().as_str());
+        Pool::builder()
+            .max_size(opt.max_connections)
+            .build(manager)
+            .unwrap()
     }
 }
 
@@ -136,29 +125,172 @@ impl fmt::Display for PostgreSQLOpt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-//            "host={} port={} dbname={} user={} password={}",
-//            self.host, self.port, self.database, self.user, self.pass
             "postgresql://{}:{}@{}:{}/{}",
             self.user, self.pass, self.host, self.port, self.database
-            )
+        )
     }
 }
 
 pub async fn get_connection() -> Result<Connection, Error> {
-    (*POOL)
-        .read()
-        .await
-        .acquire()
-        .await
-        .map_err(Error::Connection)
+    (*POOL).read().await.get().map_err(Error::Connection)
 }
 
-async fn get_filter_connection() -> Result<Connection, Rejection> {
-    get_connection()
-        .await
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))
+#[derive(Debug)]
+pub enum Error {
+    Connection(::r2d2::Error),
+    InvalidValues(Vec<String>),
+    Migration(diesel_migrations::RunMigrationsError),
+    RunQuery(result::Error),
+    NoRows,
+    UserUnauthorized(Uuid),
+    Other(String),
 }
 
-pub fn conn_filter() -> BoxedFilter<(Connection,)> {
-    warp::any().and_then(get_filter_connection).boxed()
+impl From<result::Error> for Error {
+    fn from(err: result::Error) -> Self {
+        Error::RunQuery(err)
+    }
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Connection(err) => write!(f, "{}", err.to_string()),
+            Error::InvalidValues(list) => write!(f, "{}", list.join(", ")),
+            Error::Migration(err) => write!(f, "{}", err.to_string()),
+            Error::RunQuery(err) => write!(f, "{}", err.to_string()),
+            Error::NoRows => write!(f, "No rows"),
+            Error::UserUnauthorized(id) => write!(f, "User {} is unauthorized", id),
+            Error::Other(err) => write!(f, "{}", err),
+        }
+    }
+}
+
+pub trait TryFromDb {
+    type DBType;
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized;
+}
+
+pub trait IntoDbWithId {
+    type DBType;
+    fn into_db(self, id: Uuid) -> Self::DBType;
+}
+
+pub trait IntoDb {
+    type DBType;
+    fn into_db(self) -> Self::DBType;
+}
+
+/// This trait represents a type that is based on a single DB table. It may have foreign
+/// keys, but there are e.g. no junction tables that need to be updated when this type is
+/// updated.
+pub trait StandaloneDbMarker {}
+
+pub trait GetById {
+    fn db_get_by_id(id: &Uuid, conn: &Connection) -> Result<Self, Error>
+    where
+        Self: Sized;
+}
+
+impl<T, U> GetById for T where T: TryFromDb<DBType=U>, U: GetById {
+    fn db_get_by_id(id: &Uuid, conn: &Connection) -> Result<Self, Error> where
+        Self: Sized {
+        T::try_from_db(U::db_get_by_id(id, conn)?, conn)
+    }
+}
+
+pub trait GetAll {
+    fn db_get_all(conn: &Connection) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized;
+}
+
+impl<T, U> GetAll for T where T: TryFromDb<DBType=U>, U: GetAll {
+    fn db_get_all(conn: &Connection) -> Result<Vec<Self>, Error> where
+        Self: Sized {
+        U::db_get_all(conn)?
+            .into_iter()
+            .map(|item| T::try_from_db(item, conn))
+            .collect()
+    }
+}
+
+pub trait Insert {
+    fn db_insert(&self, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> Insert for (T, Uuid) where T: IntoDbWithId<DBType=U> + Clone + StandaloneDbMarker, U: Insert {
+    fn db_insert(&self, conn: &Connection) -> Result<(), Error> {
+        let (item, id) = self;
+        let db_item: U = T::clone(item)
+            .into_db(Uuid::clone(id));
+        db_item.db_insert(conn)
+    }
+}
+
+impl<T,U> Insert for T where T: IntoDb<DBType=U> + Clone + StandaloneDbMarker, U: Insert {
+    fn db_insert(&self, conn: &Connection) -> Result<(), Error> {
+        let db_item: U = T::clone(self)
+            .into_db();
+        db_item.db_insert(conn)
+    }
+}
+
+pub trait Update {
+    fn db_update(&self, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> Update for (T, Uuid) where T: IntoDbWithId<DBType=U> + Clone + StandaloneDbMarker, U: Update {
+    fn db_update(&self, conn: &Connection) -> Result<(), Error> {
+        let (item, id) = self;
+        let db_item: U = T::clone(item)
+            .into_db(Uuid::clone(id));
+        db_item.db_update(conn)
+    }
+}
+
+impl<T,U> Update for T where T: IntoDb<DBType=U> + Clone + StandaloneDbMarker, U: Update {
+    fn db_update(&self, conn: &Connection) -> Result<(), Error> {
+        let db_item: U = T::clone(self)
+            .into_db();
+        db_item.db_update(conn)
+    }
+}
+
+pub trait Delete {
+    fn db_delete(&self, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> Delete for (T, Uuid) where T: IntoDbWithId<DBType=U> + Clone + StandaloneDbMarker, U: Delete {
+    fn db_delete(&self, conn: &Connection) -> Result<(), Error> {
+        let (item, id) = self;
+        let db_item: U = T::clone(item)
+            .into_db(Uuid::clone(id));
+        db_item.db_delete(conn)
+    }
+}
+
+impl<T,U> Delete for T where T: IntoDb<DBType=U> + Clone + StandaloneDbMarker, U: Delete {
+    fn db_delete(&self, conn: &Connection) -> Result<(), Error> {
+        let db_item: U = T::clone(self)
+            .into_db();
+        db_item.db_delete(conn)
+    }
+}
+
+pub trait DeleteById {
+    fn db_delete_by_id(id: &Uuid, conn: &Connection) -> Result<(), Error>;
+}
+
+impl<T,U> DeleteById for T where T: TryFromDb<DBType=U> + StandaloneDbMarker , U: DeleteById {
+    fn db_delete_by_id(id: &Uuid, conn: &Connection) -> Result<(), Error> {
+        U::db_delete_by_id(id, conn)
+    }
+}
+
+// Error codes come from https://www.postgresql.org/docs/10/errcodes-appendix.html
+pub const PG_ERROR_CHECK_VIOLATION: &str = "23514";
+pub const PG_ERROR_FOREIGN_KEY_VIOLATION: &str = "23503";
+pub const PG_ERROR_NOT_NULL_VIOLATION: &str = "23502";
+pub const PG_ERROR_RESTRICT_VIOLATION: &str = "23001";
+pub const PG_ERROR_UNIQUE_VIOLATION: &str = "23505";

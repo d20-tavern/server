@@ -1,6 +1,5 @@
 [workspace]
 members = [
     "tavern_derive",
-    "tavern_pathfinder",
     "tavern_server",
 ]

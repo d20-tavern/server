@@ -1,23 +1,25 @@
-use crate::forms;
-use crate::status::{Error, Success};
+use crate::db::{Delete, GetAll, GetById, Insert, Update};
 use crate::{config, db, status};
+use crate::{forms, schema};
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use bytes::Bytes;
+use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
+use diesel::result::Error as DieselError;
+use diesel::RunQueryDsl;
 use http::HeaderValue;
 use nebula_form::Form;
 use nebula_status::{Empty, Status, StatusCode};
 use rand::RngCore;
 use serde::Serialize;
-use sqlx::postgres::PgRow;
-use sqlx::types::Uuid;
-use sqlx::Error as SQLError;
-use sqlx::Connection;
-use sqlx::{Cursor, FromRow, Row};
 use std::convert::TryFrom;
 use structopt::StructOpt;
+use uuid::Uuid;
 use warp::filters::BoxedFilter;
 use warp::reject::Rejection;
 use warp::Filter;
+
+use crate::schema::users;
 
 /// The length of an Argon2i hash, in bytes.
 pub const ARGON2_HASH_LENGTH: u32 = 32;
@@ -27,7 +29,6 @@ pub const ARGON2_SALT_LENGTH: usize = 32;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::executor::block_on;
     use nebula_form::{Field, Form};
 
     const TEST_MEMORY: u32 = 1024u32;
@@ -90,15 +91,15 @@ mod tests {
         assert_eq!(info.user.email, email);
     }
 
-    #[test]
-    fn hash_succeeds() {
+    #[tokio::test]
+    async fn hash_succeeds() {
         let salt = b"super secret salt";
         let pass = b"p@ssw0rd";
         let conf = argon2::Config::default();
 
         let expected = argon2::hash_raw(pass, salt, &conf).unwrap();
 
-        let hash = block_on(hash_password(pass, salt, &conf)).unwrap();
+        let hash = hash_password(pass, salt, &conf).await.unwrap();
 
         // Note: for actual application uses, argon2::verify_raw should be used instead
         assert_eq!(expected, hash);
@@ -249,22 +250,6 @@ pub struct Argon2Opt {
     threads: u32,
 }
 
-impl<'c> FromRow<'c, PgRow<'c>> for Argon2Opt {
-    // The argon2 library we are using expects u32, but postgres
-    // only supports signed integers.
-    fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
-        let memory: i32 = row.try_get("memory")?;
-        let time_cost: i32 = row.try_get("time_cost")?;
-        let threads: i32 = row.try_get("threads")?;
-
-        Ok(Argon2Opt {
-            memory: memory as u32,
-            time_cost: time_cost as u32,
-            threads: threads as u32,
-        })
-    }
-}
-
 impl From<Argon2Opt> for argon2::Config<'static> {
     fn from(opt: Argon2Opt) -> Config<'static> {
         let mut config = Config::default();
@@ -361,22 +346,6 @@ impl TryFrom<Form> for User {
     }
 }
 
-impl<'c> FromRow<'c, PgRow<'c>> for User {
-    fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
-        let id: Uuid = row.try_get("id")?;
-        let username: String = row.try_get("username")?;
-        let email: String = row.try_get("email")?;
-        let is_admin: bool = row.try_get("is_admin")?;
-
-        Ok(User {
-            id: Some(id),
-            username,
-            email,
-            is_admin,
-        })
-    }
-}
-
 impl From<User> for Bytes {
     fn from(user: User) -> Self {
         status::serialize_to_bytes(&user)
@@ -399,13 +368,94 @@ impl UserAuth {
     }
 }
 
-impl<'c> FromRow<'c, PgRow<'c>> for UserAuth {
-    fn from_row(row: &PgRow<'c>) -> Result<Self, sqlx::Error> {
-        let hash: Vec<u8> = row.try_get("pass_hash")?;
-        let salt: Vec<u8> = row.try_get("salt")?;
-        let config = Argon2Opt::from_row(row)?.into();
+#[derive(
+    AsChangeset,
+    Associations,
+    Identifiable,
+    Insertable,
+    Queryable,
+    GetAll,
+    GetById,
+    Insert,
+    Update,
+    Delete,
+)]
+#[table_name = "users"]
+struct DBUser {
+    id: Uuid,
+    email: String,
+    username: String,
+    is_admin: bool,
+    pass_hash: Vec<u8>,
+    salt: Vec<u8>,
+    time_cost: i32,
+    memory: i32,
+    threads: i32,
+}
 
-        Ok(UserAuth { hash, salt, config })
+impl From<(User, UserAuth)> for DBUser {
+    fn from((user, auth): (User, UserAuth)) -> Self {
+        DBUser {
+            // TODO: fix User to not use Option
+            id: user.id.unwrap(),
+            email: user.email,
+            username: user.username,
+            is_admin: user.is_admin,
+            pass_hash: auth.hash,
+            salt: auth.salt,
+            time_cost: auth.config.time_cost as i32,
+            memory: auth.config.mem_cost as i32,
+            threads: auth.config.lanes as i32,
+        }
+    }
+}
+
+impl Into<(User, UserAuth)> for DBUser {
+    fn into(self) -> (User, UserAuth) {
+        let user = User {
+            id: Some(self.id),
+            username: self.username,
+            email: self.email,
+            is_admin: self.is_admin,
+        };
+
+        let config = Argon2Opt {
+            memory: self.memory as u32,
+            time_cost: self.time_cost as u32,
+            threads: self.threads as u32,
+        };
+
+        let auth = UserAuth {
+            hash: self.pass_hash,
+            salt: self.salt,
+            config: config.into(),
+        };
+
+        (user, auth)
+    }
+}
+
+impl DBUser {
+    fn db_from_username(user_username: String, conn: &db::Connection) -> Result<Self, Rejection> {
+        use schema::users::dsl::*;
+        users
+            .filter(username.eq(&user_username))
+            .first::<DBUser>(conn)
+            .map_err(|err| match err {
+                DieselError::NotFound => reject_login_required(),
+                _ => status::server_error_into_rejection(err.to_string()),
+            })
+    }
+
+    fn db_from_email(user_email: String, conn: &db::Connection) -> Result<Self, Rejection> {
+        use schema::users::dsl::*;
+        users
+            .filter(email.eq(&user_email))
+            .first::<DBUser>(conn)
+            .map_err(|err| match err {
+                DieselError::NotFound => reject_login_required(),
+                _ => status::server_error_into_rejection(err.to_string()),
+            })
     }
 }
 
@@ -488,58 +538,39 @@ async fn register_in_database(
     user: User,
     auth: UserAuth,
     conn: db::Connection,
-) -> Result<Status<Success<User>>, Rejection> {
-    let mut tx = conn
-        .begin()
-        .await
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
-
-    let id = Uuid::new_v4();
-
-    let query = sqlx::query(
-        r"INSERT INTO Users
-    (id, email, username, pass_hash, salt, time_cost, memory, threads)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-    )
-    .bind(&id)
-    .bind(&user.email)
-    .bind(&user.username)
-    .bind(&auth.hash)
-    .bind(&auth.salt)
-    .bind(&auth.config.time_cost)
-    .bind(&auth.config.mem_cost)
-    .bind(&auth.config.lanes);
-
-    query.execute(&mut tx).await.map_err(|err| {
-        match err {
-            SQLError::Database(dberr) => {
-                match dberr.code() {
-                    Some(db::PG_ERROR_UNIQUE_VIOLATION) => {
-                        match dberr.constraint_name() {
-                            None => status::server_error_into_rejection(dberr.to_string()),
-                            Some(name) => match name {
-                                // Before updating this code with new columns, ensure that no
-                                // sensitive information will end up in the error message.
-                                CONSTRAINT_USER_EMAIL_UNIQUE | CONSTRAINT_USER_USERNAME_UNIQUE => Status::with_data(
-                                    &StatusCode::BAD_REQUEST,
-                                    Error::new(format!("user with that {} already exists", name)),
-                                )
-                                .into(),
-                                _ => status::server_error_into_rejection(dberr.to_string()),
-                            },
-                        }
-                    }
-                    _ => status::server_error_into_rejection(dberr.to_string()),
-                }
-            }
-            _ => status::server_error_into_rejection(err.to_string()),
-        }
-    })?;
-
-    tx.commit()
-        .await
-        .map(|_| Status::with_data(&StatusCode::OK, Success::new(user)))
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))
+) -> Result<Status<Empty>, Rejection> {
+    use schema::users::dsl::*;
+    let db_user = DBUser::from((user, auth));
+    diesel::insert_into(users)
+        .values(db_user)
+        .execute(&conn)
+        .map(|_| Status::new(&StatusCode::OK))
+        .map_err(|err| match &err {
+            DieselError::DatabaseError(kind, info) => match kind {
+                DatabaseErrorKind::UniqueViolation => match info.constraint_name() {
+                    None => Status::with_message(
+                        &StatusCode::BAD_REQUEST,
+                        "a user with that information already exists".to_string(),
+                    )
+                    .into(),
+                    Some(name) => match name {
+                        "user_email_unique" => Status::with_message(
+                            &StatusCode::BAD_REQUEST,
+                            "a user with that email already exists".to_string(),
+                        )
+                        .into(),
+                        "user_username_unique" => Status::with_message(
+                            &StatusCode::BAD_REQUEST,
+                            "a user with that username already exists".to_string(),
+                        )
+                        .into(),
+                        other => status::server_error_into_rejection(err.to_string()),
+                    },
+                },
+                _ => status::server_error_into_rejection(err.to_string()),
+            },
+            other => status::server_error_into_rejection(other.to_string()),
+        })
 }
 
 /// Asynchronously convert a RegistrationInfo into a User and a UserAuth.
@@ -554,7 +585,7 @@ async fn registration_to_user_auth(
 }
 
 /// A warp Filter containing the full registration endpoint.
-pub fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
+pub fn register_filter() -> BoxedFilter<(Status<Empty>,)> {
     get_registration_info()
         .and(generate_salt())
         .and(get_argon2_config())
@@ -618,29 +649,7 @@ async fn user_from_credentials(
     pass: String,
     conn: db::Connection,
 ) -> Result<User, Rejection> {
-    let mut tx = conn
-        .begin()
-        .await
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
-
-    let query = sqlx::query(r"SELECT * FROM Users WHERE username = $1").bind(&user);
-
-    let mut rows = query.fetch(&mut tx);
-
-    let row = rows
-        .next()
-        .await
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))?
-        .ok_or_else(reject_login_required)?;
-
-    let user =
-        User::from_row(&row).map_err(|err| status::server_error_into_rejection(err.to_string()))?;
-    let auth = UserAuth::from_row(&row)
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
-
-    tx.commit()
-        .await
-        .map_err(|err| status::server_error_into_rejection(err.to_string()))?;
+    let (user, auth) = DBUser::db_from_username(user, &conn)?.into();
 
     if auth.is_valid(&pass)? {
         Ok(user)
@@ -659,7 +668,5 @@ pub fn user_filter() -> BoxedFilter<(User,)> {
 
 /// An endpoint that tests if the user credentials are correct and nothing more.
 pub fn login_filter() -> BoxedFilter<(Status<Empty>,)> {
-    user_filter()
-        .map(|_| Status::new(&StatusCode::OK))
-        .boxed()
+    user_filter().map(|_| Status::new(&StatusCode::OK)).boxed()
 }

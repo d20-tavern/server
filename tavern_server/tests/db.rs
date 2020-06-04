@@ -1,5 +1,3 @@
-use tavern_server::db;
-
 #[tavern_derive::db_test]
 async fn init_database_succeeds() {
     // db_test macro automatically inits once
@@ -7,5 +5,7 @@ async fn init_database_succeeds() {
 
 #[tavern_derive::db_test]
 async fn double_database_init_succeeds() {
-    db::init().await.expect("second database init failed");
+    tavern_db::init()
+        .await
+        .expect("second database init failed");
 }

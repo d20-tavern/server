@@ -1,9 +1,9 @@
-use nebula_form::{Form, Field};
+use http::header;
+use nebula_form::{Field, Form};
 use nebula_status::{Empty, Status, StatusCode};
 use tavern_server::auth;
 use tavern_server::status::{Error, Success};
 use warp::reject::Rejection;
-use http::header;
 
 const TEST_USERNAME: &'static str = "tavern_test_user";
 const TEST_PASSWORD: &'static str = "hunter2:super$3cure";
@@ -19,7 +19,7 @@ fn get_registration_form() -> Form {
     form
 }
 
-async fn registration_request(form: &Form) -> Result<Status<Success<auth::User>>, Rejection> {
+async fn registration_request(form: &Form) -> Result<Status<Empty>, Rejection> {
     warp::test::request()
         .path("/register")
         .method("POST")
@@ -46,9 +46,7 @@ async fn registration_updates_database() {
         .await
         .expect("single registration should succeed");
 
-    let user = &resp.data()
-        .expect("registration should return a User")
-        .data;
+    let user = &resp.data().expect("registration should return a User").data;
 
     assert_eq!(user.username, TEST_USERNAME);
     assert_eq!(user.email, TEST_EMAIL);
@@ -67,12 +65,14 @@ async fn double_registration_fails() {
         .await
         .expect_err("double registration should not succeed");
 
-    let stat: Status<Error> = Status::recover(resp)
-        .expect("Rejection should contain a Status");
+    let stat: Status<Error> = Status::recover(resp).expect("Rejection should contain a Status");
 
     eprintln!("{:?}", stat);
-    assert_eq!(stat.code(), &StatusCode::BAD_REQUEST,
-        "double registration should fail with 400 Bad Request");
+    assert_eq!(
+        stat.code(),
+        &StatusCode::BAD_REQUEST,
+        "double registration should fail with 400 Bad Request"
+    );
 }
 
 #[tavern_derive::db_test]
@@ -81,11 +81,13 @@ async fn login_no_such_user_fails() {
         .await
         .expect_err("login without registration should fail");
 
-    let stat: Status<Empty> = Status::recover(resp)
-        .expect("Rejection should contain a Status<Empty>");
+    let stat: Status<Empty> =
+        Status::recover(resp).expect("Rejection should contain a Status<Empty>");
 
     assert_eq!(stat.code(), &StatusCode::UNAUTHORIZED);
-    let val = stat.headers().get(header::WWW_AUTHENTICATE)
+    let val = stat
+        .headers()
+        .get(header::WWW_AUTHENTICATE)
         .expect("WWW-Authenticate header must exist");
 
     assert!(val.to_str().unwrap().contains("Basic"));
@@ -105,11 +107,12 @@ async fn login_wrong_credentials_fails() {
         .await
         .expect_err("invalid login for valid user should fail");
 
-    let stat: Status<Empty> = Status::recover(resp)
-        .expect("Rejection should contain a Status<Empty>");
+    let stat: Status<Empty> =
+        Status::recover(resp).expect("Rejection should contain a Status<Empty>");
 
     assert_eq!(stat.code(), &StatusCode::UNAUTHORIZED);
-    stat.headers().get(header::WWW_AUTHENTICATE)
+    stat.headers()
+        .get(header::WWW_AUTHENTICATE)
         .expect("WWW-Authenticate header must exist");
 }
 
@@ -130,6 +133,4 @@ async fn valid_login_succeeds() {
 }
 
 #[tavern_derive::db_test]
-async fn correct_user_on_login() {
-
-}
+async fn correct_user_on_login() {}

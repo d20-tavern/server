@@ -3,20 +3,25 @@ include ${ENVFILE}
 export
 
 # Do not run tests on tavern_derive directly: panic=abort is not supported
-CARGO_TEST_FLAGS=-p tavern_server -p tavern_pathfinder
+CARGO_TEST_FLAGS=
 CARGO_INCREMENTAL=0
 CARGO_VERBOSE=false
+CARGO_COVERAGE=false
 
-ifeq (${CARGO_NIGHTLY}, test)
+ifeq (${CARGO_NIGHTLY}, true)
 	CARGO_VERBOSE_FLAG=--verbose
 	CARGO_COMMAND=rustup run nightly cargo
 	RUSTUP_TARGET=rustup-nightly
-	RUSTFLAGS=-Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Z macro-backtrace
+	RUSTFLAGS=-Z macro-backtrace --cfg nightly --cfg procmacro2_semver_exempt
 else
 	CARGO_COMMAND=rustup run stable cargo
 	CARGO_VERBOSE_FLAG=
 	RUSTUP_TARGET=rustup-stable
 	RUSTFLAGS=
+endif
+
+ifeq (${CARGO_COVERAGE}, true)
+	RUSTFLAGS=${RUSTFLAGS} -Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off
 endif
 
 all: test test-db
@@ -47,8 +52,11 @@ rustup-stable: rustup
 	fi
 
 test: ${RUSTUP_TARGET}
-	${CARGO_COMMAND} test ${CARGO_TEST_FLAGS}
+	${CARGO_COMMAND} test --manifest-path tavern_server/Cargo.toml ${CARGO_TEST_FLAGS}
 
 test-db: export RUST_TEST_THREADS = 1
 test-db: ${RUSTUP_TARGET} postgres
 	${CARGO_COMMAND} test ${CARGO_TEST_FLAGS} --all-features
+
+clean: ${RUSTUP_TARGET}
+	${CARGO_COMMAND} clean
