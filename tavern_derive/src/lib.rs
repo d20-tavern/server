@@ -166,7 +166,7 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
             input.ident.span(),
             "this macro only works on enums with all unit variants"
         )
-            .into();
+        .into()
     };
 
     for v in input.variants.pairs() {
@@ -177,7 +177,7 @@ pub fn impl_enum_display(input: TokenStream) -> TokenStream {
                     v.value().ident.span(),
                     "this macro only works on enums with all unit variants"
                 )
-                    .into()
+                .into()
             }
         }
     }
