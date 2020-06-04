@@ -311,8 +311,8 @@ impl TryFrom<Form> for User {
     type Error = Rejection;
 
     fn try_from(form: Form) -> Result<Self, Self::Error> {
-        let username = forms::get_form_text_field(&form, FIELD_USERNAME)?;
-        let email = forms::get_form_text_field(&form, FIELD_EMAIL)?;
+        let username = forms::get_required_form_text_field(&form, FIELD_USERNAME)?;
+        let email = forms::get_required_form_text_field(&form, FIELD_EMAIL)?;
         let is_admin = form
             .get(FIELD_IS_ADMIN)
             .map(|field| {
@@ -469,7 +469,7 @@ struct RegistrationInfo {
 impl TryFrom<Form> for RegistrationInfo {
     type Error = Rejection;
     fn try_from(form: Form) -> Result<Self, Self::Error> {
-        let password = forms::get_form_text_field(&form, FIELD_PASSWORD)?;
+        let password = forms::get_required_form_text_field(&form, FIELD_PASSWORD)?;
 
         let info = RegistrationInfo {
             user: User::try_from(form)?,

@@ -22,6 +22,9 @@ use crate::schema::{
 use std::cmp::Ordering;
 use crate::db::{TryFromDb, IntoDb, Connection, Error, GetAll, GetById, Delete, DeleteById, Insert, Update, StandaloneDbMarker};
 use std::collections::{BTreeSet, BTreeMap};
+use crate::forms::{self, TryFromForm};
+use warp::Rejection;
+use nebula_form::Form;
 
 #[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Character {
@@ -63,6 +66,162 @@ pub struct Character {
     links: Links,
     #[serde(skip)]
     description: String,
+}
+
+impl Character {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_RACE: &'static str = "race";
+    const FIELD_AGE: &'static str = "age";
+    const FIELD_GENDER: &'static str = "gender";
+    const FIELD_ALIGNMENT: &'static str = "alignment";
+    const FIELD_BACKSTORY: &'static str = "backstory";
+    const FIELD_HEIGHT: &'static str = "height";
+    const FIELD_WEIGHT: &'static str = "weight";
+    const FIELD_SIZE: &'static str = "size";
+
+    const FIELD_STRENGTH: &'static str = "strength";
+    const FIELD_DEXTERITY: &'static str = "dexterity";
+    const FIELD_CONSTITUTION: &'static str = "constitution";
+    const FIELD_INTELLIGENCE: &'static str = "intelligence";
+    const FIELD_WISDOM: &'static str = "wisdom";
+    const FIELD_CHARISMA: &'static str = "charisma";
+
+    const FIELD_MAX_HP: &'static str = "max-hp";
+    const FIELD_DAMAGE: &'static str = "lethal-damage";
+    const FIELD_NONLETHAL: &'static str = "nonlethal-damage";
+
+    const FIELD_COPPER: &'static str = "copper";
+    const FIELD_SILVER: &'static str = "silver";
+    const FIELD_GOLD: &'static str = "gold";
+    const FIELD_PLATINUM: &'static str = "platinum";
+
+    const FIELD_DEITY: &'static str = "deity-id";
+    const FIELD_SUBCLASSES: &'static str = "subclasses";
+    const FIELD_FEATS: &'static str = "feats";
+    const FIELD_SPELLS: &'static str = "spells";
+    const FIELD_BAGS: &'static str = "bags";
+    const FIELD_EQUIPMENT: &'static str = "equipment";
+    const FIELD_FEATURES: &'static str = "features";
+}
+
+impl TryFromForm for Character {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Character>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Character::FIELD_NAME)?;
+        let race = forms::get_required_form_text_field(&form, Character::FIELD_RACE)?;
+        let race = forms::value_by_id(race, conn)?;
+        let age = forms::get_required_form_text_field(&form, Character::FIELD_AGE)?;
+        let gender = forms::get_required_form_text_field(&form, Character::FIELD_GENDER)?;
+        let alignment = forms::get_required_form_text_field(&form, Character::FIELD_ALIGNMENT)?;
+        let backstory = forms::get_required_form_text_field(&form, Character::FIELD_BACKSTORY)?;
+        let height = forms::get_required_form_text_field(&form, Character::FIELD_HEIGHT)?;
+        let weight = forms::get_required_form_text_field(&form, Character::FIELD_WEIGHT)?;
+        let size = forms::get_required_form_text_field(&form, Character::FIELD_SIZE)?;
+
+        let strength = forms::get_required_form_text_field(&form, Character::FIELD_STRENGTH)?;
+        let dexterity = forms::get_required_form_text_field(&form, Character::FIELD_DEXTERITY)?;
+        let constitution = forms::get_required_form_text_field(&form, Character::FIELD_CONSTITUTION)?;
+        let intelligence = forms::get_required_form_text_field(&form, Character::FIELD_INTELLIGENCE)?;
+        let wisdom = forms::get_required_form_text_field(&form, Character::FIELD_WISDOM)?;
+        let charisma = forms::get_required_form_text_field(&form, Character::FIELD_CHARISMA)?;
+
+        let max_hp = forms::get_required_form_text_field(&form, Character::FIELD_MAX_HP)?;
+        let damage = forms::get_required_form_text_field(&form, Character::FIELD_DAMAGE)?;
+        let nonlethal = forms::get_required_form_text_field(&form, Character::FIELD_NONLETHAL)?;
+
+        let copper = forms::get_required_form_text_field(&form, Character::FIELD_COPPER)?;
+        let silver = forms::get_required_form_text_field(&form, Character::FIELD_SILVER)?;
+        let gold = forms::get_required_form_text_field(&form, Character::FIELD_GOLD)?;
+        let platinum = forms::get_required_form_text_field(&form, Character::FIELD_PLATINUM)?;
+
+        let deity = forms::get_optional_form_text_field(&form, Character::FIELD_DEITY)?
+            .map(|id| forms::value_by_id(id, conn))
+            .transpose()?;
+
+        let subclasses: String = forms::get_required_form_text_field(&form, Character::FIELD_SUBCLASSES)?;
+        let subclasses = serde_json::from_str::<Vec<Uuid>>(&subclasses)
+            .map_err(|_| forms::field_is_invalid_error(Character::FIELD_SUBCLASSES))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<Vec<Summary<Subclass>>, _>>()?;
+
+        let feats: String = forms::get_required_form_text_field(&form, Character::FIELD_FEATS)?;
+        let feats = serde_json::from_str::<Vec<Uuid>>(&feats)
+            .map_err(|_| forms::field_is_invalid_error(Character::FIELD_FEATS))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let spells:String = forms::get_required_form_text_field(&form, Character::FIELD_SPELLS)?;
+        let spells = serde_json::from_str::<Vec<Uuid>>(&spells)
+            .map_err(|_| forms::field_is_invalid_error(Character::FIELD_SPELLS))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let bags: String = forms::get_required_form_text_field(&form, Character::FIELD_BAGS)?;
+        let bags = serde_json::from_str::<Vec<Uuid>>(&bags)
+            .map_err(|_| forms::field_is_invalid_error(Character::FIELD_BAGS))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<BTreeSet<Summary<Bag>>, _>>()?;
+
+        let features: String = forms::get_required_form_text_field(&form, Character::FIELD_FEATURES)?;
+        let features = serde_json::from_str::<Vec<Uuid>>(&features)
+            .map_err(|_| forms::field_is_invalid_error(Character::FIELD_FEATURES))?
+            .into_iter()
+            .map(|id| forms::value_by_id(id, conn))
+            .collect::<Result<_, _>>()?;
+
+        let equipment: String = forms::get_required_form_text_field(&form, Character::FIELD_EQUIPMENT)?;
+        let equipment = serde_json::from_str::<BTreeMap<String, Uuid>>(&equipment)
+            .map_err(|_| forms::field_is_invalid_error(Character::FIELD_EQUIPMENT))?
+            .into_iter()
+            .map::<Result<(EquipmentSlot, Summary<Item>), Rejection>, _>(|(slot, id)| {
+                let slot = slot.as_str().parse()
+                    .map_err(|_| forms::field_is_invalid_error(Character::FIELD_EQUIPMENT))?;
+                let item = forms::value_by_id(id, conn)?;
+                Ok((slot, item))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let character = Character {
+            id,
+            race,
+            deity,
+            subclasses,
+            feats,
+            spells,
+            bags,
+            equipment,
+            features,
+            name,
+            age,
+            gender,
+            alignment,
+            backstory,
+            height,
+            weight,
+            size,
+            strength,
+            dexterity,
+            constitution,
+            intelligence,
+            wisdom,
+            charisma,
+            max_hp,
+            damage,
+            nonlethal,
+            copper,
+            silver,
+            gold,
+            platinum,
+            links: Default::default(),
+            description: Default::default(),
+        };
+
+        Ok(character)
+    }
 }
 
 impl TryFromDb for Character {
@@ -303,6 +462,48 @@ pub struct Race {
     languages: Vec<String>,
 }
 
+impl Race {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+    const FIELD_MAIN_TYPE: &'static str = "main-type";
+    const FIELD_SUB_TYPE: &'static str = "sub-type";
+    const FIELD_MOVE_SPEED: &'static str = "move-speed";
+    const FIELD_SIZE: &'static str = "size";
+    const FIELD_LANGUAGES: &'static str = "languages";
+}
+
+impl TryFromForm for Race {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<Race>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Race::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Race::FIELD_DESCRIPTION)?;
+        let main_type = forms::get_required_form_text_field(&form, Race::FIELD_MAIN_TYPE)?;
+        let main_type = forms::value_by_id(main_type, conn)?;
+        let sub_type = forms::get_optional_form_text_field(&form, Race::FIELD_SUB_TYPE)?
+            .map(|id| forms::value_by_id(id, conn))
+            .transpose()?;
+        let move_speed = forms::get_required_form_text_field(&form, Race::FIELD_MOVE_SPEED)?;
+        let size = forms::get_required_form_text_field(&form, Race::FIELD_SIZE)?;
+        let languages: String = forms::get_required_form_text_field(&form, Race::FIELD_LANGUAGES)?;
+        let languages = serde_json::from_str(&languages)
+            .map_err(|_| forms::field_is_invalid_error(Race::FIELD_LANGUAGES))?;
+
+        let race = Race {
+            id,
+            links: Default::default(),
+            name,
+            description,
+            main_type,
+            sub_type,
+            move_speed,
+            size,
+            languages
+        };
+
+        Ok(race)
+    }
+}
+
 impl TryFromDb for Race {
     type DBType = DBRace;
 
@@ -368,6 +569,23 @@ pub struct RaceType {
     bab_per_hit_die: f32,
 }
 
+impl RaceType {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_HIT_DIE: &'static str = "hit-die";
+    const FIELD_BAB_PER_HIT_DIE: &'static str = "bab-per-hit-die";
+}
+
+impl TryFromForm for RaceType {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<RaceType>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, RaceType::FIELD_NAME)?;
+        let hit_die = forms::get_required_form_text_field(&form, RaceType::FIELD_HIT_DIE)?;
+        let bab_per_hit_die = forms::get_required_form_text_field(&form, RaceType::FIELD_BAB_PER_HIT_DIE)?;
+
+        Ok(RaceType{ id, name, hit_die, bab_per_hit_die })
+    }
+}
+
 impl Ord for RaceType {
     fn cmp(&self, other: &Self) -> Ordering {
         self.id.cmp(&other.id)
@@ -397,4 +615,19 @@ pub struct RaceSubtype {
     id: Uuid,
     name: String,
     description: String,
+}
+
+impl RaceSubtype {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+}
+
+impl TryFromForm for RaceSubtype {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<RaceSubtype>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, RaceSubtype::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, RaceSubtype::FIELD_DESCRIPTION)?;
+
+        Ok(RaceSubtype{ id, name, description })
+    }
 }

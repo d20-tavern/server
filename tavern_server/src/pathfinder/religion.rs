@@ -5,11 +5,15 @@ use super::Links;
 use crate::schema::{deities, deitydomains, deityweapons, domains, domainspells, subdomains};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
 use crate::pathfinder::summary::Summary;
 use crate::db::{self, Connection, GetById, GetAll, Error, Delete, DeleteById, Insert, Update, IntoDbWithId, TryFromDb, IntoDb, StandaloneDbMarker};
 use diesel::prelude::*;
 use diesel::Connection as DieselConnection;
+use crate::forms::{self, TryFromForm};
+use warp::Rejection;
+use nebula_form::Form;
+use crate::pathfinder::item::ArmorClass::Light;
 
 #[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Deity {
@@ -20,6 +24,52 @@ pub struct Deity {
     favored_animals: Option<String>,
     domains: BTreeSet<Summary<Domain>>,
     weapons: BTreeSet<Summary<Weapon>>,
+}
+
+impl Deity {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+    const FIELD_ANIMALS: &'static str = "favored-animals";
+    const FIELD_DOMAINS: &'static str = "domains";
+    const FIELD_WEAPONS: &'static str = "weapons";
+}
+
+impl TryFromForm for Deity {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> {
+        let id = forms::valid_id_or_new::<Deity>(this_id, conn)?;
+        let name = forms::get_required_form_text_field(&form, Deity::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Deity::FIELD_DESCRIPTION)?;
+        let favored_animals = forms::get_optional_form_text_field(&form, Deity::FIELD_ANIMALS)?;
+        let domains: String = forms::get_required_form_text_field(&form, Deity::FIELD_DOMAINS)?;
+        let domains: BTreeSet<Summary<Domain>> = serde_json::from_str::<Vec<Uuid>>(&domains)
+            .map_err(|_| forms::field_is_invalid_error(Deity::FIELD_DOMAINS))?
+            .into_iter()
+            .map(|id| {
+                Summary::<Domain>::db_get_by_id(&id, conn)
+            })
+            .collect::<Result<_, _>>()
+            .map_err(|_| forms::field_is_invalid_error(Deity::FIELD_DOMAINS))?;
+        let weapons: String = forms::get_required_form_text_field(&form, Deity::FIELD_WEAPONS)?;
+        let weapons: BTreeSet<Summary<Weapon>> = serde_json::from_str::<Vec<Uuid>>(&weapons)
+            .map_err(|_| forms::field_is_invalid_error(Deity::FIELD_DOMAINS))?
+            .into_iter()
+            .map(|id| {
+                Summary::<Weapon>::db_get_by_id(&id, conn)
+            })
+            .collect::<Result<_, _>>()
+            .map_err(|_| forms::field_is_invalid_error(Deity::FIELD_DOMAINS))?;
+
+        let deity = Deity {
+            links: Default::default(),
+            id,
+            name,
+            description,
+            favored_animals,
+            domains: Default::default(),
+            weapons: Default::default()
+        };
+        Ok(deity)
+    }
 }
 
 #[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable)]
@@ -128,13 +178,6 @@ pub struct DBDeityWeapon {
     item_id: Uuid,
 }
 
-//impl TryFromDb for Summary<Weapon> {
-//    type DBType = DBDeityWeapon;
-//    fn try_from_db(db_weapon: DBDeityWeapon, conn: &Connection) -> Result<Self, Error> {
-//        Summary::<Weapon>::db_get_by_id(&db_weapon.item_id, conn)
-//    }
-//}
-
 impl IntoDbWithId for Summary<Weapon> {
     type DBType = DBDeityWeapon;
     fn into_db(self, deity_id: Uuid) -> DBDeityWeapon {
@@ -154,6 +197,52 @@ pub struct Domain {
     power_description: String,
     subdomains: BTreeSet<Subdomain>,
     spells: BTreeSet<(Summary<Spell>, i16)>,
+}
+
+impl Domain {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+    const FIELD_POWER_DESC: &'static str = "power-description";
+    const FIELD_SUBDOMAINS: &'static str = "subdomains";
+    const FIELD_SPELLS: &'static str = "spells";
+}
+
+impl TryFromForm for Domain {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, _parent_id: Option<Uuid>) -> Result<Self, Rejection> {
+        let id = this_id.unwrap_or_else(|| Uuid::new_v4());
+        let name = forms::get_required_form_text_field(&form, Domain::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Domain::FIELD_DESCRIPTION)?;
+        let power_description  = forms::get_required_form_text_field(&form, Domain::FIELD_POWER_DESC)?;
+        let subdomains: String = forms::get_required_form_text_field(&form, Domain::FIELD_SUBDOMAINS)?;
+        let subdomains = serde_json::from_str::<Vec<Uuid>>(&subdomains)
+            .map_err(|_| forms::field_is_invalid_error(Domain::FIELD_SUBDOMAINS))?
+            .into_iter()
+            .map(|id| {
+                Subdomain::db_get_by_id(&id, conn)
+            })
+            .collect::<Result<BTreeSet<Subdomain>, _>>()?;
+        let spells: String = forms::get_required_form_text_field(&form, Domain::FIELD_SPELLS)?;
+        let spells = serde_json::from_str::<BTreeMap<Uuid, i16>>(&spells)
+            .map_err(|_| forms::field_is_invalid_error(Domain::FIELD_SUBDOMAINS))?
+            .into_iter()
+            .map::<Result<(Summary<Spell>, i16), Rejection>, _>(|(id, casts)| {
+                let spell = Summary::<Spell>::db_get_by_id(&id, conn)?;
+                Ok((spell, casts))
+            })
+            .collect::<Result<BTreeSet<(Summary<Spell>, i16)>, Rejection>>()?;
+
+        let domain = Domain {
+            id,
+            links: Links::new(),
+            name,
+            description,
+            power_description,
+            subdomains,
+            spells,
+        };
+
+        Ok(domain)
+    }
 }
 
 impl DeleteById for Domain {
@@ -357,6 +446,21 @@ pub struct Subdomain {
     links: Links,
     name: String,
     description: String,
+}
+
+impl Subdomain {
+    const FIELD_NAME: &'static str = "name";
+    const FIELD_DESCRIPTION: &'static str = "description";
+}
+
+impl TryFromForm for Subdomain {
+    fn try_from_form(_conn: &Connection, form: Form, this_id: Option<Uuid>, _parent_id: Option<Uuid>) -> Result<Self, Rejection> {
+        let id = this_id.unwrap_or_else(|| Uuid::new_v4());
+        let name = forms::get_required_form_text_field(&form, Subdomain::FIELD_NAME)?;
+        let description = forms::get_required_form_text_field(&form, Subdomain::FIELD_DESCRIPTION)?;
+
+        Ok(Subdomain { id, links: Links::new(), name, description })
+    }
 }
 
 impl GetById for Subdomain {
