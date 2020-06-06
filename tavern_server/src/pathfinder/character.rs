@@ -20,20 +20,23 @@ use crate::schema::{
     charactersubclasses, races, racesubtypes, racetypes,
 };
 use std::cmp::Ordering;
-use crate::db::{TryFromDb, IntoDb, Connection, Error, GetAll, GetById, Delete, DeleteById, Insert, Update, StandaloneDbMarker};
+use crate::db::{TryFromDb, IntoDb, Connection, Error, GetAll, GetById, Delete, DeleteById, Insert, Update, StandaloneDbMarker, IntoDbWithId};
 use std::collections::{BTreeSet, BTreeMap};
 use crate::forms::{self, TryFromForm};
-use warp::Rejection;
+use warp::{Rejection, Reply, Filter};
 use nebula_form::Form;
+use crate::api::{GetById as APIGetById, GetAll as APIGetAll, Insert as APIInsert, Update as APIUpdate, DeleteById as APIDeleteById, Filters, APIPath};
+use warp::filters::BoxedFilter;
+use nebula_status::{Status, StatusCode};
 
-#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct Character {
     id: Uuid,
     race: Race,
     deity: Option<Summary<Deity>>,
-    subclasses: Vec<Summary<Subclass>>,
+    subclasses: Vec<CharacterSubclass>,
     feats: Vec<Summary<Feat>>,
-    spells: Vec<Summary<Spell>>,
+    spells: BTreeMap<Summary<Spell>, i16>,
     bags: BTreeSet<Summary<Bag>>,
     equipment: BTreeMap<EquipmentSlot, Summary<Item>>,
     features: Vec<Summary<Feature>>,
@@ -67,6 +70,28 @@ pub struct Character {
     #[serde(skip)]
     description: String,
 }
+
+//impl Filters for Character {
+//    fn filters(parent_id: Option<Uuid>) -> BoxedFilter<(Box<dyn Reply>,)> {
+//        let with_id = warp::path::param()
+//                .and_then(|id| {
+//                    Self::get_by_id(None, id)
+//                        .or(Self::update(None, id))
+//                        .or(Self::delete_by_id(None, id))
+//                        //.or(Bags::filters(Some(id)))
+//                        .unify()
+//                });
+//        warp::path("characters")
+//            .and(
+//                    with_id.or(
+//                        Self::insert(None)
+//                            .or(Self::get_all(None))
+//                            .unify()
+//                    ).unify()
+//            )
+//            .boxed()
+//    }
+//}
 
 impl Character {
     const FIELD_NAME: &'static str = "name";
@@ -138,12 +163,16 @@ impl TryFromForm for Character {
             .map(|id| forms::value_by_id(id, conn))
             .transpose()?;
 
-        let subclasses: String = forms::get_required_form_text_field(&form, Character::FIELD_SUBCLASSES)?;
-        let subclasses = serde_json::from_str::<Vec<Uuid>>(&subclasses)
-            .map_err(|_| forms::field_is_invalid_error(Character::FIELD_SUBCLASSES))?
-            .into_iter()
-            .map(|id| forms::value_by_id(id, conn))
-            .collect::<Result<Vec<Summary<Subclass>>, _>>()?;
+        let subclasses = {
+            use crate::schema::charactersubclasses::dsl::*;
+            charactersubclasses.filter(char_id.eq(id))
+                .load::<DBCharacterSubclass>(conn)
+                .map_err(Error::RunQuery)
+                .map_err(Rejection::from)?
+                .into_iter()
+                .map(|csc| CharacterSubclass::try_from_db(csc, conn))
+                .collect::<Result<_, _>>()
+        }?;
 
         let feats: String = forms::get_required_form_text_field(&form, Character::FIELD_FEATS)?;
         let feats = serde_json::from_str::<Vec<Uuid>>(&feats)
@@ -152,12 +181,12 @@ impl TryFromForm for Character {
             .map(|id| forms::value_by_id(id, conn))
             .collect::<Result<_, _>>()?;
 
-        let spells:String = forms::get_required_form_text_field(&form, Character::FIELD_SPELLS)?;
-        let spells = serde_json::from_str::<Vec<Uuid>>(&spells)
+        let spells: String = forms::get_required_form_text_field(&form, Character::FIELD_SPELLS)?;
+        let spells = serde_json::from_str::<BTreeMap<Uuid, i16>>(&spells)
             .map_err(|_| forms::field_is_invalid_error(Character::FIELD_SPELLS))?
             .into_iter()
-            .map(|id| forms::value_by_id(id, conn))
-            .collect::<Result<_, _>>()?;
+            .map::<Result<(Summary<Spell>, i16), Rejection>, _>(|(id, casts)| Ok((forms::value_by_id::<Summary<Spell>>(id, conn)?, casts)))
+            .collect::<Result<BTreeMap<Summary<Spell>, i16>, _>>()?;
 
         let bags: String = forms::get_required_form_text_field(&form, Character::FIELD_BAGS)?;
         let bags = serde_json::from_str::<Vec<Uuid>>(&bags)
@@ -277,12 +306,165 @@ impl TryFromDb for Character {
 }
 
 impl IntoDb for Character {
-    type DBType = ();
+    type DBType = (DBCharacter, Vec<DBCharacterSubclass>, Vec<DBCharacterFeat>, Vec<DBCharacterSpell>, Vec<DBCharacterEquipment>, Vec<DBCharacterFeature>);
 
     fn into_db(self) -> Self::DBType {
-        unimplemented!()
+        let subclasses = self.subclasses.iter()
+            .map(|sc| sc.to_owned().into_db(self.id.clone()))
+            .collect();
+        let feats = self.feats.iter()
+            .map(|feat| DBCharacterFeat{
+                char_id: self.id.clone(),
+                feat_id: feat.id().to_owned(),
+            })
+            .collect();
+        let spells = self.spells.iter()
+            .map(|(spell, casts)| DBCharacterSpell {
+                char_id: Default::default(),
+                spell_id: Default::default(),
+                casts_remaining: *casts,
+            })
+            .collect();
+        let equipment = self.equipment.iter()
+            .map(|(slot, item)| DBCharacterEquipment {
+                char_id: self.id.clone(),
+                item_id: item.id().to_owned(),
+            })
+            .collect();
+        let features = self.features.iter()
+            .map(|feature| DBCharacterFeature {
+                char_id: self.id.clone(),
+                feature_id: feature.id().to_owned(),
+            })
+            .collect();
+
+        let character = DBCharacter {
+            id: self.id,
+            race_id: self.race.id,
+            deity_id: self.deity.map(|deity| deity.id().to_owned()),
+            name: self.name,
+            age: self.age,
+            gender: self.gender,
+            alignment: self.alignment,
+            backstory: self.backstory,
+            height: self.height,
+            weight: self.weight,
+            size: self.size,
+            strength: self.strength,
+            dexterity: self.dexterity,
+            constitution: self.constitution,
+            intelligence: self.intelligence,
+            wisdom: self.wisdom,
+            charisma: self.charisma,
+            max_hp: self.max_hp,
+            damage: self.damage,
+            nonlethal: self.nonlethal,
+            copper: self.copper,
+            silver: self.silver,
+            gold: self.gold,
+            platinum: self.platinum,
+        };
+
+        (character, subclasses, feats, spells, equipment, features)
     }
 }
+
+//impl Insert for Character {
+//    fn db_insert(&self, conn: &Connection) -> Result<(), Error> {
+//        conn.transaction::<_, Error, _>(|| {
+//            let (character, subclasses, feats, spells, equipment, features) = self.into_db();
+//            character.db_insert(conn)?;
+//            for s in subclasses.into_iter() {
+//                s.db_insert(conn)?;
+//            }
+//            for f in feats.into_iter() {
+//                f.db_insert(conn)?;
+//            }
+//            for s in spells.into_iter() {
+//                s.db_insert(conn)?;
+//            }
+//            for e in equipment.into_iter() {
+//                e.db_insert(conn)?;
+//            }
+//            for f in features.into_iter() {
+//                f.db_insert(conn)?;
+//            }
+//
+//            Ok(())
+//        })
+//    }
+//}
+//
+//impl Update for Character {
+//    fn db_update(&self, conn: &Connection) -> Result<(), Error> {
+//        conn.transaction::<_, Error, _>(|| {
+//            let (character, subclasses, feats, spells, equipment, features) = self.into_db();
+//            character.db_update(conn)?;
+//            for s in subclasses.into_iter() {
+//                s.db_update(conn)?;
+//            }
+//            for f in feats.into_iter() {
+//                f.db_update(conn)?;
+//            }
+//            for s in spells.into_iter() {
+//                s.db_update(conn)?;
+//            }
+//            for e in equipment.into_iter() {
+//                e.db_update(conn)?;
+//            }
+//            for f in features.into_iter() {
+//                f.db_update(conn)?;
+//            }
+//
+//            Ok(())
+//        })
+//    }
+//}
+//
+//impl DeleteById for Character {
+//    fn db_delete_by_id(id: &Uuid, conn: &Connection) -> Result<(), Error> {
+//        conn.transaction::<_, Error, _>(|| {
+//            DBCharacter::db_delete_by_id(id, conn)?;
+//
+//            {
+//                use crate::schema::charactersubclasses::dsl::*;
+//                diesel::delete(charactersubclasses.filter(char_id.eq(id)))
+//                    .execute(conn)
+//                    .map_err(Error::RunQuery)
+//            }?;
+//
+//            {
+//                use crate::schema::characterfeats::dsl::*;
+//                diesel::delete(characterfeats.filter(char_id.eq(id)))
+//                    .execute(conn)
+//                    .map_err(Error::RunQuery)
+//            }?;
+//
+//            {
+//                use crate::schema::characterspells::dsl::*;
+//                diesel::delete(characterspells.filter(char_id.eq(id)))
+//                    .execute(conn)
+//                    .map_err(Error::RunQuery)
+//            }?;
+//
+//            {
+//                use crate::schema::characterequipment::dsl::*;
+//                diesel::delete(characterequipment.filter(char_id.eq(id)))
+//                    .execute(conn)
+//                    .map_err(Error::RunQuery)
+//            }?;
+//
+//            {
+//                use crate::schema::characterfeatures::dsl::*;
+//                diesel::delete(characterfeatures.filter(char_id.eq(id)))
+//                    .execute(conn)
+//                    .map_err(Error::RunQuery)
+//            }?;
+//
+//            Ok(())
+//        })
+//    }
+//}
 
 impl Character {
     fn update_desc(&mut self) {
@@ -300,7 +482,6 @@ impl Character {
 #[table_name = "characters"]
 pub struct DBCharacter {
     id: Uuid,
-    user_id: Uuid,
     race_id: Uuid,
     deity_id: Option<Uuid>,
 
@@ -331,12 +512,12 @@ pub struct DBCharacter {
 }
 
 impl DBCharacter {
-    fn get_subclasses(&self, conn: &Connection) -> Result<Vec<Summary<Subclass>>, Error> {
+    fn get_subclasses(&self, conn: &Connection) -> Result<Vec<CharacterSubclass>, Error> {
         DBCharacterSubclass::belonging_to(self)
             .load::<DBCharacterSubclass>(conn)
             .map_err(Error::RunQuery)?
             .into_iter()
-            .map(|sc| Summary::<Subclass>::db_get_by_id(&sc.subclass_id, conn))
+            .map(|sc| CharacterSubclass::try_from_db(sc, conn))
             .collect()
     }
     fn get_feats(&self, conn: &Connection) -> Result<Vec<Summary<Feat>>, Error> {
@@ -347,12 +528,12 @@ impl DBCharacter {
             .map(|f| Summary::<Feat>::db_get_by_id(&f.feat_id, conn))
             .collect()
     }
-    fn get_spells(&self, conn: &Connection) -> Result<Vec<Summary<Spell>>, Error> {
+    fn get_spells(&self, conn: &Connection) -> Result<BTreeMap<Summary<Spell>, i16>, Error> {
         DBCharacterSpell::belonging_to(self)
             .load::<DBCharacterSpell>(conn)
             .map_err(Error::RunQuery)?
             .into_iter()
-            .map(|s| Summary::<Spell>::db_get_by_id(&s.spell_id, conn))
+            .map(|s| Ok((Summary::<Spell>::db_get_by_id(&s.spell_id, conn)?, s.casts_remaining)))
             .collect()
     }
     fn get_bags(&self, conn: &Connection) -> Result<BTreeSet<Summary<Bag>>, Error> {
@@ -385,6 +566,43 @@ impl DBCharacter {
             .into_iter()
             .map(|f| Summary::<Feature>::db_get_by_id(&f.feature_id, conn))
             .collect()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
+pub struct CharacterSubclass {
+    pub subclass: Summary<Subclass>,
+    pub levels_taken: i16,
+    pub hp_taken: i16,
+    pub skills_taken: i16,
+}
+
+impl TryFromDb for CharacterSubclass {
+    type DBType = DBCharacterSubclass;
+
+    fn try_from_db(other: Self::DBType, conn: &Connection) -> Result<Self, Error> where Self: Sized {
+        let subclass = Summary::<Subclass>::db_get_by_id(&other.subclass_id, conn)?;
+        let char_subclass = CharacterSubclass {
+            subclass,
+            levels_taken: other.levels_taken,
+            hp_taken: other.hp_taken,
+            skills_taken: other.skills_taken,
+        };
+        Ok(char_subclass)
+    }
+}
+
+impl IntoDbWithId for CharacterSubclass {
+    type DBType = DBCharacterSubclass;
+
+    fn into_db(self, char_id: Uuid) -> Self::DBType {
+        DBCharacterSubclass {
+            subclass_id: self.subclass.id().to_owned(),
+            char_id,
+            levels_taken: self.levels_taken,
+            hp_taken: self.hp_taken,
+            skills_taken: self.skills_taken,
+        }
     }
 }
 
@@ -449,7 +667,7 @@ pub struct DBCharacterEquipment {
 
 // TODO: I think this can be implemented better
 
-#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker, Debug)]
 pub struct Race {
     id: Uuid,
     links: Links,
@@ -558,7 +776,7 @@ pub struct DBRace {
     languages: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone)]
+#[derive(Serialize, Deserialize, AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Debug)]
 #[derive(GetAll, GetById, Delete, DeleteById, Insert, Update)]
 #[tavern(is_identifiable, is_insertable, is_queryable)]
 #[table_name = "racetypes"]
@@ -606,7 +824,7 @@ impl PartialEq for RaceType {
 
 impl Eq for RaceType{}
 
-#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 #[derive(GetAll, GetById, Delete, DeleteById, Insert, Update)]
 #[tavern(is_identifiable, is_insertable, is_queryable)]
 #[table_name = "racesubtypes"]

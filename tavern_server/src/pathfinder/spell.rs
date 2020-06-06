@@ -11,20 +11,22 @@ use tavern_derive::{Display, FromStr};
 
 use crate::schema::{spells, spellcomponents, spelleffects};
 use crate::status::Error;
-use crate::db::{self, Connection, Delete, DeleteById, GetAll, GetById, Insert, Update, IntoDbWithId, TryFromDb, IntoDb, StandaloneDbMarker};
+use crate::db::{self, Connection, Delete, DeleteById, GetAll, GetById, Insert, Update, IntoDbWithId, TryFromDb, IntoDb, StandaloneDbMarker, GetAllUnderParent};
 use diesel::prelude::*;
 use diesel_derive_enum::DbEnum;
 use diesel::Connection as DieselConnection;
 use diesel::result::Error as DieselError;
 use crate::forms::TryFromForm;
-use warp::Rejection;
+use warp::{Rejection, Reply, Filter};
 use nebula_form::{Form, Field};
 use nebula_status::{Status, StatusCode};
 use crate::pathfinder::Skill::Spellcraft;
 use crate::{forms, status};
 use std::convert::TryFrom;
+use crate::api::{Filters, GetById as APIGetById, Update as APIUpdate, DeleteById as APIDeleteById, Insert as APIInsert, GetAll as APIGetAll};
+use warp::filters::BoxedFilter;
 
-#[derive(Clone, Serialize, Deserialize, Summarize, Ord, PartialOrd, PartialEq, Eq,)]
+#[derive(Clone, Serialize, Deserialize, Summarize, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct Spell {
     pub links: Links,
     pub id: Uuid,
@@ -342,13 +344,33 @@ pub struct DBSpellEffect {
     pub effect_id: Uuid,
 }
 
-#[derive(Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Clone, StandaloneDbMarker)]
+#[derive(Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Clone, StandaloneDbMarker, Debug)]
 pub struct SpellComponent {
     pub id: Uuid,
     pub item: Option<(Summary<Item>, i16)>,
     #[serde(rename = "type")]
     pub component_type: ComponentType,
 }
+
+//impl Filters for SpellComponent {
+//    fn filters(parent_id: Option<Uuid>) -> BoxedFilter<(Box<dyn Reply>,)> {
+//        warp::path("components")
+//            .and(
+//                warp::path::param()
+//                    .and_then(|id| {
+//                        Self::get_by_id(None, id)
+//                            .or(Self::update(None, id))
+//                            .or(Self::delete_by_id(None, id))
+//                            //.or(Bags::filters(Some(id)))
+//                            .unify()
+//                    }).or(
+//                        Self::insert(None)
+//                            .or(Self::get_all(None))
+//                            .unify()
+//                    ).unify()
+//            ).boxed()
+//    }
+//}
 
 impl SpellComponent {
     const FIELD_ITEM_ID: &'static str = "item-id";
@@ -430,6 +452,8 @@ impl TryFromDb for SpellComponent {
     Identifiable,
     Insertable,
     Queryable,
+    GetAll,
+    GetAllUnderParent,
     GetById,
     Delete,
     DeleteById,
@@ -440,7 +464,7 @@ impl TryFromDb for SpellComponent {
     PartialEq,
     Eq,
 )]
-#[tavern(is_insertable, is_identifiable, is_queryable)]
+#[tavern(is_insertable, is_identifiable, is_queryable, parent_field = "spell_id")]
 #[table_name = "spellcomponents"]
 #[belongs_to(DBSpell, foreign_key = "spell_id")]
 pub struct DBSpellComponent {

@@ -6,6 +6,7 @@ use syn::{Attribute, Ident, LitStr, Meta, NestedMeta, Path};
 
 pub(crate) struct DBStructAttrs {
     pub(crate) id_field: Ident,
+    pub(crate) parent_field: Option<Ident>,
     pub(crate) is_identifiable: bool,
     pub(crate) is_insertable: bool,
     pub(crate) is_queryable: bool,
@@ -16,6 +17,7 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
     type Error = TokenStream;
     fn try_from(attrs: Vec<Attribute>) -> Result<Self, TokenStream> {
         let mut id_field = None;
+        let mut parent_field = None;
         let mut table = None;
         let mut is_identifiable = false;
         let mut is_insertable = false;
@@ -40,6 +42,13 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
                                                             }
                                                             let lit = literals::lit_to_lit_str(&nv.lit)?;
                                                             id_field = Some(literals::try_from_lit_str(&lit)?);
+                                                        },
+                                                        "parent_field" => {
+                                                            if parent_field.is_some() {
+                                                                return Err(compile_error_args!(meta.span(), "parent_field inner attribute should only be set once"));
+                                                            }
+                                                            let lit = literals::lit_to_lit_str(&nv.lit)?;
+                                                            parent_field = Some(literals::try_from_lit_str(&lit)?);
                                                         },
                                                         _ => return Err(compile_error_args!(meta.span(), "unknown attribute name {}", id)),
                                                     }
@@ -107,6 +116,7 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
             is_identifiable,
             is_insertable,
             is_queryable,
+            parent_field,
             id_field: id_field.unwrap_or(literals::try_from_lit_str(&LitStr::new(
                 "id",
                 Span::call_site(),

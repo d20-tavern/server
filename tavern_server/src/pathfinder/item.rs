@@ -22,7 +22,7 @@ use nebula_status::{Status, StatusCode};
 use crate::status::Error;
 use std::str::FromStr;
 
-#[derive(Serialize, Deserialize, Summarize, Clone)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Debug)]
 pub struct Item {
     pub links: Links,
     pub id: Uuid,
@@ -243,7 +243,7 @@ impl PartialEq for DBItem {
 
 impl Eq for DBItem{}
 
-#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker)]
+#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker, Debug)]
 pub struct ItemEffect {
     effect: Summary<Effect>,
     is_permanent: bool,
@@ -286,7 +286,7 @@ pub struct DBItemEffect {
     is_permanent: bool,
 }
 
-#[derive(Serialize, Deserialize, Summarize, Clone)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Debug)]
 pub struct Bag {
     id: Uuid,
     links: Links,
@@ -369,7 +369,7 @@ pub struct DBBag {
     capacity: i32,
 }
 
-#[derive(Serialize, Deserialize, StandaloneDbMarker, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, StandaloneDbMarker, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub struct ItemInBag {
     pub item: Summary<Item>,
     pub count: i32,
@@ -443,7 +443,7 @@ pub enum ArmorClass {
     Heavy,
 }
 
-#[derive(Serialize, Deserialize, Clone, StandaloneDbMarker)]
+#[derive(Serialize, Deserialize, Clone, StandaloneDbMarker, Debug)]
 pub struct Weapon {
     #[serde(flatten)]
     item: Item,
@@ -624,7 +624,7 @@ impl Summarize<Weapon> for Weapon {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker)]
+#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker, Debug)]
 pub struct Armor {
     #[serde(flatten)]
     item: Item,
@@ -741,7 +741,7 @@ impl Summarize<Armor> for Armor {
     }
 }
 
-#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker, Debug)]
 pub struct Material {
     id: Uuid,
     links: Links,

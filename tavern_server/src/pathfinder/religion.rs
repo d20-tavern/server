@@ -15,7 +15,7 @@ use warp::Rejection;
 use nebula_form::Form;
 use crate::pathfinder::item::ArmorClass::Light;
 
-#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct Deity {
     links: Links,
     id: Uuid,
@@ -188,7 +188,7 @@ impl IntoDbWithId for Summary<Weapon> {
     }
 }
 
-#[derive(Serialize, Deserialize, Summarize, Ord, PartialOrd, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Summarize, Ord, PartialOrd, PartialEq, Eq, Clone, Debug)]
 pub struct Domain {
     id: Uuid,
     links: Links,
@@ -440,7 +440,7 @@ impl IntoDbWithId for (Summary<Spell>, i16) {
     }
 }
 
-#[derive(Serialize, Deserialize, Summarize, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker, Clone)]
+#[derive(Serialize, Deserialize, Summarize, Ord, PartialOrd, PartialEq, Eq, StandaloneDbMarker, Clone, Debug)]
 pub struct Subdomain {
     id: Uuid,
     links: Links,

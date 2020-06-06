@@ -27,7 +27,7 @@ use crate::pathfinder::feat::Feat;
 use crate::status::Error;
 use nebula_status::{Status, StatusCode};
 
-#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct Subclass {
     links: Links,
     id: Uuid,
@@ -169,7 +169,7 @@ pub struct DBSubclassFeature {
     feature_id: Uuid,
 }
 
-#[derive(Serialize, Deserialize, Summarize, Clone)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Debug)]
 pub struct Class {
     links: Links,
     id: Uuid,
@@ -455,6 +455,7 @@ Serialize,
 Deserialize,
 Summarize,
 Clone, Ord, PartialOrd, PartialEq, Eq,
+Debug
 )]
 pub struct Feature {
     id: Uuid,
@@ -529,7 +530,7 @@ pub trait Proficiencies<T> {
     fn not_proficient(&mut self, item: T);
 }
 
-#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct ArmorProficiencies {
     classes: BTreeSet<ArmorClass>,
     prof: BTreeSet<Summary<Armor>>,
@@ -623,7 +624,7 @@ impl Proficiencies<Summary<Armor>> for ArmorProficiencies {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct WeaponProficiencies {
     classes: BTreeSet<WeaponClass>,
     prof: BTreeSet<Summary<Weapon>>,

@@ -1,5 +1,6 @@
-use crate::db::{Delete, GetAll, GetById, Insert, Update};
-use crate::{config, db, status};
+use crate::db::{self, Connection, Delete, GetAll, GetById, Insert, Update, TryFromDb, IntoDb, Error};
+use crate::config;
+use crate::status::{self, Error as StatusError};
 use crate::{forms, schema};
 use argon2::{self, Config, ThreadMode, Variant, Version};
 use bytes::Bytes;
@@ -20,6 +21,8 @@ use warp::reject::Rejection;
 use warp::Filter;
 
 use crate::schema::users;
+use crate::status::Success;
+use crate::forms::TryFromForm;
 
 /// The length of an Argon2i hash, in bytes.
 pub const ARGON2_HASH_LENGTH: u32 = 32;
@@ -74,8 +77,8 @@ mod tests {
         assert_eq!(a2conf.lanes, TEST_THREADS);
     }
 
-    #[test]
-    fn from_form_to_registration_info_succeeds() {
+    #[tokio::test]
+    async fn from_form_to_registration_info_succeeds() {
         let user = "username";
         let pass = "hunter2";
         let email = "user@domain.com";
@@ -85,7 +88,10 @@ mod tests {
         form.insert(FIELD_PASSWORD, Field::Text(pass.to_string()));
         form.insert(FIELD_EMAIL, Field::Text(email.to_string()));
 
-        let info = RegistrationInfo::try_from(form).unwrap();
+        let conn = db::get_connection().await
+            .expect("failed to get connection");
+
+        let info = RegistrationInfo::try_from_form(&conn, form, None, None).unwrap();
         assert_eq!(info.user.username, user);
         assert_eq!(info.password, pass);
         assert_eq!(info.user.email, email);
@@ -132,30 +138,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn retrieves_registration_info_ignores_user_id() {
-        let username = "foobar";
-        let password = "hunter2";
-        let email = "email@domain.org";
-        let id = Uuid::new_v4().to_hyphenated();
-
-        let mut form = Form::with_capacity(3);
-        form.insert(FIELD_USERNAME, Field::Text(username.to_string()));
-        form.insert(FIELD_PASSWORD, Field::Text(password.to_string()));
-        form.insert(FIELD_EMAIL, Field::Text(email.to_string()));
-        form.insert(FIELD_USER_ID, Field::Text(id.to_string()));
-
-        let info = warp::test::request()
-            .method("POST")
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(form.to_url_encoded().unwrap().as_bytes())
-            .filter(&get_registration_info())
-            .await
-            .unwrap();
-
-        assert_eq!(info.user.id, None);
-    }
-
-    #[tokio::test]
     async fn retrieves_registration_info_ignores_is_admin() {
         let username = "foobar";
         let password = "hunter2";
@@ -182,7 +164,7 @@ mod tests {
     async fn registration_to_user_and_user_auth() {
         let pass = "hunter2";
         let exp_user = User {
-            id: None,
+            id: Uuid::new_v4(),
             username: "foobar".to_string(),
             email: "example@domain.org".to_string(),
             is_admin: false,
@@ -286,7 +268,7 @@ pub const FIELD_USERNAME: &str = "username";
 pub struct User {
     /// The User's unique ID. If None, this user is being registered
     /// or is invalid.
-    pub id: Option<Uuid>,
+    pub id: Uuid,
     /// The User's username.
     pub username: String,
     /// The User's email address.
@@ -295,47 +277,36 @@ pub struct User {
     pub is_admin: bool,
 }
 
+impl TryFromDb for User {
+    type DBType = DBUser;
+
+    fn try_from_db(other: Self::DBType, _conn: &Connection) -> Result<Self, Error> where Self: Sized {
+        let user = User {
+            id: other.id,
+            username: other.username,
+            email: other.email,
+            is_admin: other.is_admin,
+        };
+
+        Ok(user)
+    }
+}
+
 impl PartialEq for User {
     fn eq(&self, other: &Self) -> bool {
-        if self.id.is_some() && other.id.is_some() {
-            self.id.unwrap() == other.id.unwrap()
-        } else {
-            self.username == other.username || self.email == other.email
-        }
+            self.id == other.id || self.username == other.username || self.email == other.email
     }
 }
 
 impl Eq for User {}
 
-impl TryFrom<Form> for User {
-    type Error = Rejection;
-
-    fn try_from(form: Form) -> Result<Self, Self::Error> {
+impl TryFromForm for User {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
+        let id = forms::valid_id_or_new::<User>(this_id, conn)?;
         let username = forms::get_required_form_text_field(&form, FIELD_USERNAME)?;
         let email = forms::get_required_form_text_field(&form, FIELD_EMAIL)?;
-        let is_admin = form
-            .get(FIELD_IS_ADMIN)
-            .map(|field| {
-                field
-                    .as_text()
-                    .map(|val| -> Result<bool, Rejection> { Ok(val.eq_ignore_ascii_case("true")) })
-                    .ok_or_else(|| forms::field_is_file_error(FIELD_IS_ADMIN))?
-            })
-            .unwrap_or(Ok(false))?;
-        let id = form.get(FIELD_USER_ID).map(|field| {
-            field
-                .as_text()
-                .map(|val| {
-                    Uuid::parse_str(val).map_err(|_| forms::field_is_invalid_error(FIELD_USER_ID))
-                })
-                .ok_or_else(|| forms::field_is_file_error(FIELD_USER_ID))?
-        });
-
-        // Not sure how else to extract the Result from an Option
-        let id = match id {
-            None => None,
-            Some(val) => Some(val?),
-        };
+        let is_admin = forms::get_optional_form_text_field(&form, FIELD_IS_ADMIN)?
+            .unwrap_or(false);
 
         Ok(User {
             id,
@@ -381,7 +352,7 @@ impl UserAuth {
     Delete,
 )]
 #[table_name = "users"]
-struct DBUser {
+pub struct DBUser {
     id: Uuid,
     email: String,
     username: String,
@@ -396,8 +367,7 @@ struct DBUser {
 impl From<(User, UserAuth)> for DBUser {
     fn from((user, auth): (User, UserAuth)) -> Self {
         DBUser {
-            // TODO: fix User to not use Option
-            id: user.id.unwrap(),
+            id: user.id,
             email: user.email,
             username: user.username,
             is_admin: user.is_admin,
@@ -413,7 +383,7 @@ impl From<(User, UserAuth)> for DBUser {
 impl Into<(User, UserAuth)> for DBUser {
     fn into(self) -> (User, UserAuth) {
         let user = User {
-            id: Some(self.id),
+            id: self.id,
             username: self.username,
             email: self.email,
             is_admin: self.is_admin,
@@ -466,13 +436,12 @@ struct RegistrationInfo {
     password: String,
 }
 
-impl TryFrom<Form> for RegistrationInfo {
-    type Error = Rejection;
-    fn try_from(form: Form) -> Result<Self, Self::Error> {
+impl TryFromForm for RegistrationInfo {
+    fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
         let password = forms::get_required_form_text_field(&form, FIELD_PASSWORD)?;
 
         let info = RegistrationInfo {
-            user: User::try_from(form)?,
+            user: User::try_from_form(conn, form, this_id, parent_id)?,
             password,
         };
 
@@ -501,11 +470,9 @@ fn generate_salt() -> BoxedFilter<(Vec<u8>,)> {
 fn get_registration_info() -> BoxedFilter<(RegistrationInfo,)> {
     warp::filters::method::post()
         .and(nebula_form::form_filter())
-        .and_then(|form: Form| async move {
-            RegistrationInfo::try_from(form).map(|mut info| {
-                info.user.id = None;
-                info
-            })
+        .and(db::conn_filter())
+        .and_then(|form, conn: Connection| async move {
+            RegistrationInfo::try_from_form(&conn, form, None, None)
         })
         .boxed()
 }
@@ -538,30 +505,33 @@ async fn register_in_database(
     user: User,
     auth: UserAuth,
     conn: db::Connection,
-) -> Result<Status<Empty>, Rejection> {
+) -> Result<Status<Success<User>>, Rejection> {
     use schema::users::dsl::*;
     let db_user = DBUser::from((user, auth));
     diesel::insert_into(users)
-        .values(db_user)
+        .values(&db_user)
         .execute(&conn)
-        .map(|_| Status::new(&StatusCode::OK))
+        .map(move |_| {
+            let (user, _) = db_user.into();
+            Status::with_data(&StatusCode::OK, Success::new(user))
+        })
         .map_err(|err| match &err {
             DieselError::DatabaseError(kind, info) => match kind {
                 DatabaseErrorKind::UniqueViolation => match info.constraint_name() {
-                    None => Status::with_message(
+                    None => Status::with_data(
                         &StatusCode::BAD_REQUEST,
-                        "a user with that information already exists".to_string(),
+                        StatusError::new("a user with that information already exists".to_string()),
                     )
                     .into(),
                     Some(name) => match name {
-                        "user_email_unique" => Status::with_message(
+                        "user_email_unique" => Status::with_data(
                             &StatusCode::BAD_REQUEST,
-                            "a user with that email already exists".to_string(),
+                            StatusError::new("a user with that email already exists".to_string()),
                         )
                         .into(),
-                        "user_username_unique" => Status::with_message(
+                        "user_username_unique" => Status::with_data(
                             &StatusCode::BAD_REQUEST,
-                            "a user with that username already exists".to_string(),
+                            StatusError::new("a user with that username already exists".to_string()),
                         )
                         .into(),
                         other => status::server_error_into_rejection(err.to_string()),
@@ -585,7 +555,7 @@ async fn registration_to_user_auth(
 }
 
 /// A warp Filter containing the full registration endpoint.
-pub fn register_filter() -> BoxedFilter<(Status<Empty>,)> {
+pub fn register_filter() -> BoxedFilter<(Status<Success<User>>,)> {
     get_registration_info()
         .and(generate_salt())
         .and(get_argon2_config())

@@ -58,6 +58,15 @@ pub async fn init() -> Result<(), String> {
     embedded_migrations::run(&conn).map_err(|err| format!("error while running migrations: {:#?}", err))
 }
 
+pub async fn revert() -> Result<(), String> {
+    let conn = get_connection().await
+        .map_err(|err| format!("error while getting connection: {:#?}", err))?;
+    diesel_migrations::revert_latest_migration(&conn).map_err(|err| format!("error while reverting migrations: {:#?}", err))?;
+    diesel_migrations::revert_latest_migration(&conn).map_err(|err| format!("error while reverting migrations: {:#?}", err))?;
+    diesel_migrations::revert_latest_migration(&conn).map_err(|err| format!("error while reverting migrations: {:#?}", err))
+        .map(|_| ())
+}
+
 async fn get_filter_connection() -> Result<Connection, Rejection> {
     get_connection()
         .await
@@ -229,6 +238,20 @@ impl<T, U> GetAll for T where T: TryFromDb<DBType=U>, U: GetAll {
     fn db_get_all(conn: &Connection) -> Result<Vec<Self>, Error> where
         Self: Sized {
         U::db_get_all(conn)?
+            .into_iter()
+            .map(|item| T::try_from_db(item, conn))
+            .collect()
+    }
+}
+
+pub trait GetAllUnderParent {
+    fn db_get_all_under(parent_id: &Uuid, conn: &Connection) -> Result<Vec<Self>, Error> where Self: Sized;
+}
+
+impl<T, U> GetAllUnderParent for T where T: TryFromDb<DBType=U>, U: GetAllUnderParent {
+    fn db_get_all_under(id: &Uuid, conn: &Connection) -> Result<Vec<Self>, Error> where
+        Self: Sized {
+        U::db_get_all_under(id, conn)?
             .into_iter()
             .map(|item| T::try_from_db(item, conn))
             .collect()

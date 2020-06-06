@@ -1,7 +1,7 @@
 use http::header;
 use nebula_form::{Field, Form};
 use nebula_status::{Empty, Status, StatusCode};
-use tavern_server::auth;
+use tavern_server::auth::{self, User};
 use tavern_server::status::{Error, Success};
 use warp::reject::Rejection;
 
@@ -19,7 +19,7 @@ fn get_registration_form() -> Form {
     form
 }
 
-async fn registration_request(form: &Form) -> Result<Status<Empty>, Rejection> {
+async fn registration_request(form: &Form) -> Result<Status<Success<User>>, Rejection> {
     warp::test::request()
         .path("/register")
         .method("POST")

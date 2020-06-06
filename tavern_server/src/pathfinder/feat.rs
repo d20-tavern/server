@@ -19,7 +19,7 @@ use warp::Rejection;
 use nebula_form::Form;
 use nebula_status::{Status, StatusCode};
 
-#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct Feat {
     links: Links,
     id: Uuid,

@@ -14,7 +14,7 @@ use warp::Rejection;
 use nebula_form::Form;
 use std::collections::BTreeMap;
 
-#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Summarize, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
 pub struct Effect {
     links: Links,
     id: Uuid,

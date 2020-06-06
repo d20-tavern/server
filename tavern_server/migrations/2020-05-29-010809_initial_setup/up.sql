@@ -250,7 +250,7 @@ CREATE TABLE Deities (
 --Character overview table
 CREATE TABLE Characters (
     id              UUID        PRIMARY KEY,
-    user_id         UUID        REFERENCES Users(id) NOT NULL,
+    --user_id         UUID        REFERENCES Users(id) NOT NULL,
     race_id         UUID        REFERENCES Races(id) NOT NULL,
     deity_id        UUID        REFERENCES Deities(id),
     name            TEXT        NOT NULL,

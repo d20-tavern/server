@@ -66,7 +66,7 @@ impl<T> PartialEq for dyn Summarize<T> {
 
 impl<T> Eq for dyn Summarize<T> {}
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Summary<T> {
     id: Uuid,
     links: Option<Links>,

@@ -39,22 +39,11 @@ pub fn db_test(_args: TokenStream, item: TokenStream) -> TokenStream {
         #[cfg(feature = "db-test")]
         #(#attrs)*
         #asyncness #vis fn #name() #ret {
-            use sqlx::Connection;
-            let conn = crate::db::get_connection().await
-                .expect("database reset failed");
-            let mut tx = conn.begin().await
-                .map_err(|err| crate::db::Error::Transaction(err))
-                .expect("database reset failed");
-            sqlx::query(r"DROP SCHEMA IF EXISTS tavern CASCADE")
-                .execute(&mut tx)
+            tavern_server::db::revert()
                 .await
-                .map_err(|err| crate::db::Error::RunQuery(err))
-                .expect("database reset failed");
-            tx.commit().await
-                .map_err(|err| crate::db::Error::Transaction(err))
                 .expect("database reset failed");
 
-            crate::db::init()
+            tavern_server::db::init()
                 .await
                 .expect("database initialization failed");
 
@@ -289,6 +278,48 @@ pub fn derive_get_by_id(input: TokenStream) -> TokenStream {
                 use crate::diesel::QueryDsl;
                 #table.filter(#id_field.eq(by_id))
                     .first::<#name>(conn)
+                    .map_err(crate::db::Error::RunQuery)
+            }
+        }
+    };
+
+    result.into()
+}
+
+#[proc_macro_derive(GetAllUnderParent, attributes(table_name, tavern))]
+pub fn derive_get_all_under(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    let attrs = match DBStructAttrs::try_from(input.attrs) {
+        Ok(attrs) => attrs,
+        Err(err) => return err.into(),
+    };
+    let table = attrs.table.ok_or_else(|| {
+        compile_error_args!(
+            name.span(),
+            "tavern(table) attribute expected, maps to object under crate::db::schemas"
+        )
+    });
+    let table = match table {
+        Ok(t) => t,
+        Err(err) => return err.into(),
+    };
+    let parent_id = attrs.parent_field
+        .ok_or_else(|| compile_error_args!(name.span(), "tavern(parent_field) attribute expected"));
+    let parent_id = match parent_id {
+        Ok(val) => val,
+        Err(err) => return err.into(),
+    };
+
+    let result = quote! {
+        impl crate::db::GetAllUnderParent for #name {
+            fn db_get_all_under(by_id: &Uuid, conn: &crate::db::Connection) -> Result<Vec<Self>, crate::db::Error> {
+                use crate::schema::#table::dsl::*;
+                use crate::diesel::ExpressionMethods;
+                use crate::diesel::RunQueryDsl;
+                use crate::diesel::QueryDsl;
+                #table.filter(#parent_id.eq(by_id))
+                    .load::<#name>(conn)
                     .map_err(crate::db::Error::RunQuery)
             }
         }

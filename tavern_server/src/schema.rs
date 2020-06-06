@@ -81,7 +81,6 @@ table! {
 
     characters (id) {
         id -> Uuid,
-        user_id -> Uuid,
         race_id -> Uuid,
         deity_id -> Nullable<Uuid>,
         name -> Text,
@@ -663,7 +662,6 @@ joinable!(characterfeatures -> characters (char_id));
 joinable!(characterfeatures -> features (feature_id));
 joinable!(characters -> deities (deity_id));
 joinable!(characters -> races (race_id));
-joinable!(characters -> users (user_id));
 joinable!(characterspells -> characters (char_id));
 joinable!(characterspells -> spells (spell_id));
 joinable!(charactersubclasses -> characters (char_id));

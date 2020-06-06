@@ -1,7 +1,8 @@
 use bytes::Bytes;
-use nebula_status::{Status, StatusCode, StatusData};
+use nebula_status::{Status, StatusCode, StatusData, StatusInnerData};
 use serde::Serialize;
 use warp::Rejection;
+use std::fmt::Debug;
 
 #[cfg(test)]
 mod tests {
@@ -77,18 +78,18 @@ impl From<Error> for Bytes {
 /// into JSON. The wrapper exists to enable serialization into the proper
 /// JSON format.
 #[derive(Serialize, Clone, Debug)]
-pub struct Success<T: Serialize + StatusData> {
+pub struct Success<T: Serialize + StatusInnerData> {
     pub data: T,
 }
 
-impl<T: Serialize + StatusData> Success<T> {
+impl<T: Serialize + StatusInnerData> Success<T> {
     pub(crate) fn new(data: T) -> Self {
         Self { data }
     }
 }
 
 // See note about unsafe() on Error. That should also apply here.
-impl<T: Serialize + StatusData> From<Success<T>> for Bytes {
+impl<T: Serialize + StatusInnerData> From<Success<T>> for Bytes {
     fn from(suc: Success<T>) -> Self {
         serialize_to_bytes(&suc)
     }
