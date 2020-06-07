@@ -12,7 +12,7 @@ use http::HeaderValue;
 use nebula_form::Form;
 use nebula_status::{Empty, Status, StatusCode};
 use rand::RngCore;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use structopt::StructOpt;
 use uuid::Uuid;
@@ -264,7 +264,7 @@ pub const FIELD_PASSWORD: &str = "password";
 pub const FIELD_USERNAME: &str = "username";
 
 /// Represents a user of the application.
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct User {
     /// The User's unique ID. If None, this user is being registered
     /// or is invalid.
@@ -609,6 +609,8 @@ fn credentials_from_header() -> BoxedFilter<(String, String)> {
             Ok((username.to_string(), password[1..].to_string()))
         })
         .untuple_one()
+        .or(warp::any().and_then(|| async move { Result::<(String, String), Rejection>::Err(status::not_authorized()) }).untuple_one())
+        .unify()
         .boxed()
 }
 

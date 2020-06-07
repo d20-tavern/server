@@ -5,8 +5,10 @@ use syn::spanned::Spanned;
 use syn::{Attribute, Ident, LitStr, Meta, NestedMeta, Path};
 
 pub(crate) struct DBStructAttrs {
+    pub(crate) api_path: Option<LitStr>,
     pub(crate) id_field: Ident,
     pub(crate) parent_field: Option<Ident>,
+    pub(crate) sort_field: Option<Ident>,
     pub(crate) is_identifiable: bool,
     pub(crate) is_insertable: bool,
     pub(crate) is_queryable: bool,
@@ -16,8 +18,10 @@ pub(crate) struct DBStructAttrs {
 impl TryFrom<Vec<Attribute>> for DBStructAttrs {
     type Error = TokenStream;
     fn try_from(attrs: Vec<Attribute>) -> Result<Self, TokenStream> {
+        let mut api_path = None;
         let mut id_field = None;
         let mut parent_field = None;
+        let mut sort_field = None;
         let mut table = None;
         let mut is_identifiable = false;
         let mut is_insertable = false;
@@ -36,6 +40,13 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
                                                 None => return Err(compile_error_args!(meta.span(), "tavern inner attributes should not contain paths")),
                                                 Some(id) => {
                                                     match id.to_string().as_str() {
+                                                        "api_path" => {
+                                                            if api_path.is_some() {
+                                                                return Err(compile_error_args!(meta.span(), "api_path inner attribute should only be set once"));
+                                                            }
+                                                            let lit = LitStr::to_owned(literals::lit_to_lit_str(&nv.lit)?);
+                                                            api_path = Some(lit);
+                                                        },
                                                         "id_field" => {
                                                             if id_field.is_some() {
                                                                 return Err(compile_error_args!(meta.span(), "id_field inner attribute should only be set once"));
@@ -49,6 +60,13 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
                                                             }
                                                             let lit = literals::lit_to_lit_str(&nv.lit)?;
                                                             parent_field = Some(literals::try_from_lit_str(&lit)?);
+                                                        },
+                                                        "sort_field" => {
+                                                            if sort_field.is_some() {
+                                                                return Err(compile_error_args!(meta.span(), "sort_field inner attribute should only be set once"));
+                                                            }
+                                                            let lit = literals::lit_to_lit_str(&nv.lit)?;
+                                                            sort_field = Some(literals::try_from_lit_str(&lit)?);
                                                         },
                                                         _ => return Err(compile_error_args!(meta.span(), "unknown attribute name {}", id)),
                                                     }
@@ -112,11 +130,13 @@ impl TryFrom<Vec<Attribute>> for DBStructAttrs {
         }
 
         Ok(DBStructAttrs {
+            api_path,
             table,
             is_identifiable,
             is_insertable,
             is_queryable,
             parent_field,
+            sort_field,
             id_field: id_field.unwrap_or(literals::try_from_lit_str(&LitStr::new(
                 "id",
                 Span::call_site(),

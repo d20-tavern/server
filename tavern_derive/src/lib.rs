@@ -346,6 +346,10 @@ pub fn derive_get_all(input: TokenStream) -> TokenStream {
         Ok(t) => t,
         Err(err) => return err.into(),
     };
+    let sort_field = match attrs.sort_field {
+        None => quote!{},
+        Some(field) => quote!{.order(#field.asc())}
+    };
 
     let result = quote! {
         impl crate::db::GetAll for #name {
@@ -354,7 +358,7 @@ pub fn derive_get_all(input: TokenStream) -> TokenStream {
                 use crate::diesel::ExpressionMethods;
                 use crate::diesel::RunQueryDsl;
                 use crate::diesel::QueryDsl;
-                #table
+                #table#sort_field
                     .load::<#name>(conn)
                     .map_err(crate::db::Error::RunQuery)
             }
@@ -580,6 +584,54 @@ pub fn derive_standalone_db_marker(input: TokenStream) -> TokenStream {
 
     let result = quote! {
         impl crate::db::StandaloneDbMarker for #name {}
+    };
+
+    result.into()
+}
+
+#[proc_macro_derive(Filters, attributes(table_name, tavern))]
+pub fn derive_filters(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    let attrs = match DBStructAttrs::try_from(input.attrs) {
+        Ok(attrs) => attrs,
+        Err(err) => return err.into(),
+    };
+    let table = attrs.table.ok_or_else(|| {
+        compile_error_args!(
+            name.span(),
+            "tavern(table) attribute expect to map to object under crate::db::schemas"
+        )
+    });
+    let table = match table {
+        Ok(t) => t,
+        Err(err) => return err.into(),
+    };
+    let id_field = attrs.id_field;
+    let api_path = attrs.api_path.ok_or_else(||
+        compile_error_args!(
+            name.span(),
+            "tavern(api_path) attribute expected"
+        )
+    );
+    let api_path = match api_path {
+        Ok(p) => p,
+        Err(err) => return err.into(),
+    };
+
+    let result = quote! {
+        impl crate::api::Filters for #name {
+            fn filters(parent_id: Option<Uuid>) -> BoxedFilter<(Box<dyn Reply>,)> {
+                warp::path(#api_path)
+                    .and(
+                        Self::get_by_id(parent_id) // This
+                            .or(Self::update(parent_id)).unify()
+                            .or(Self::delete_by_id(parent_id)).unify()
+                            .or(Self::insert(parent_id)).unify()
+                            .or(Self::get_all(parent_id)).unify()
+                    ).boxed()
+            }
+        }
     };
 
     result.into()

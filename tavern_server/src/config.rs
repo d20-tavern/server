@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use structopt::StructOpt;
 use warp::filters::BoxedFilter;
 use warp::Filter;
+use std::net::IpAddr;
 
 // Creates a private single instance of the configuration.
 // Filters can then use the filter() method to get an immutable reference
@@ -14,17 +15,21 @@ lazy_static! {
 }
 
 #[derive(StructOpt, Debug)]
-pub(crate) struct Config {
+pub struct Config {
+    #[structopt(short = "ip", long = "ip-address", default_value = "127.0.0.1", env = "TAVERN_IP_ADDRESS")]
+    pub address: IpAddr,
+    #[structopt(short, long, default_value = "8765", env = "TAVERN_PORT")]
+    pub port: u16,
     #[structopt(flatten)]
-    pub(crate) database: PostgreSQLOpt,
+    pub database: PostgreSQLOpt,
     #[structopt(flatten)]
-    pub(crate) argon2: Argon2Opt,
+    pub argon2: Argon2Opt,
 }
 
 /// A getter returning an immutable reference to the server configuration.
 /// Should only be used by functions outside of warp Filters. For Filters,
 /// use filter() instead.
-pub(crate) fn config() -> &'static Config {
+pub fn config() -> &'static Config {
     &*CONFIG
 }
 

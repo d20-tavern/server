@@ -1,8 +1,10 @@
 use bytes::Bytes;
 use nebula_status::{Status, StatusCode, StatusData, StatusInnerData};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use warp::Rejection;
 use std::fmt::Debug;
+use serde::de::DeserializeOwned;
+use http::{header, HeaderValue};
 
 #[cfg(test)]
 mod tests {
@@ -45,12 +47,14 @@ pub(crate) fn not_found() -> Rejection {
 }
 
 pub(crate) fn not_authorized() -> Rejection {
-    Status::new(&StatusCode::UNAUTHORIZED).into()
+    let mut status = Status::new(&StatusCode::UNAUTHORIZED);
+    status.headers_mut().insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Basic"));
+    status.into()
 }
 
 /// The application error type. This exists primarily to enable serialization
 /// into the appropriate JSON format.
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Error {
     /// The associated message for this error. May be displayed to the client
     /// and/or logged somewhere.
@@ -77,19 +81,19 @@ impl From<Error> for Bytes {
 /// The application success type. Contains something that can be serialized
 /// into JSON. The wrapper exists to enable serialization into the proper
 /// JSON format.
-#[derive(Serialize, Clone, Debug)]
-pub struct Success<T: Serialize + StatusInnerData> {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Success<T: Serialize + StatusInnerData + 'static> {
     pub data: T,
 }
 
-impl<T: Serialize + StatusInnerData> Success<T> {
+impl<T: Serialize + DeserializeOwned + StatusInnerData + 'static> Success<T> {
     pub(crate) fn new(data: T) -> Self {
         Self { data }
     }
 }
 
 // See note about unsafe() on Error. That should also apply here.
-impl<T: Serialize + StatusInnerData> From<Success<T>> for Bytes {
+impl<T: Serialize + DeserializeOwned + StatusInnerData + 'static> From<Success<T>> for Bytes {
     fn from(suc: Success<T>) -> Self {
         serialize_to_bytes(&suc)
     }

@@ -224,7 +224,7 @@ CREATE TABLE RaceTypes (
 
 CREATE TABLE RaceSubtypes (
     id              UUID    PRIMARY KEY,
-    name            TEXT    NOT NULL,
+    name            TEXT    NOT NULL UNIQUE,
     description     TEXT    NOT NULL
 );
 

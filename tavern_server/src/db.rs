@@ -22,7 +22,7 @@ mod tests {
     fn postgres_opt_to_connstr() {
         let ps_opt = PostgreSQLOpt {
             host: String::from("host.example.com"),
-            port: 5432u16,
+            db_port: 5432u16,
             database: String::from("test"),
             user: String::from("foo"),
             pass: String::from("bar"),
@@ -92,7 +92,7 @@ pub struct PostgreSQLOpt {
         default_value = "5432",
         help = "the port PostgreSQL is listening to on the host"
     )]
-    port: u16,
+    db_port: u16,
     #[structopt(
         long = "db-name",
         env = "TAVERN_DB_NAME",
@@ -138,7 +138,7 @@ impl fmt::Display for PostgreSQLOpt {
         write!(
             f,
             "postgresql://{}:{}@{}:{}/{}",
-            self.user, self.pass, self.host, self.port, self.database
+            self.user, self.pass, self.host, self.db_port, self.database
         )
     }
 }

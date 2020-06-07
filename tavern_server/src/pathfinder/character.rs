@@ -825,26 +825,30 @@ impl PartialEq for RaceType {
 impl Eq for RaceType{}
 
 #[derive(AsChangeset, Associations, Identifiable, Insertable, Queryable, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
-#[derive(GetAll, GetById, Delete, DeleteById, Insert, Update)]
-#[tavern(is_identifiable, is_insertable, is_queryable)]
+#[derive(GetAll, GetById, Delete, DeleteById, Insert, Update, Filters)]
+#[tavern(is_identifiable, is_insertable, is_queryable, api_path = "race-subtypes")]
 #[table_name = "racesubtypes"]
 #[derive(Serialize, Deserialize)]
 pub struct RaceSubtype {
-    id: Uuid,
-    name: String,
-    description: String,
+    pub id: Uuid,
+    pub name: String,
+    pub description: String,
 }
 
 impl RaceSubtype {
-    const FIELD_NAME: &'static str = "name";
-    const FIELD_DESCRIPTION: &'static str = "description";
+    pub const FIELD_NAME: &'static str = "name";
+    pub const FIELD_DESCRIPTION: &'static str = "description";
 }
 
 impl TryFromForm for RaceSubtype {
     fn try_from_form(conn: &Connection, form: Form, this_id: Option<Uuid>, parent_id: Option<Uuid>) -> Result<Self, Rejection> where Self: Sized {
         let id = forms::valid_id_or_new::<RaceSubtype>(this_id, conn)?;
-        let name = forms::get_required_form_text_field(&form, RaceSubtype::FIELD_NAME)?;
+        let name: String = forms::get_required_form_text_field(&form, RaceSubtype::FIELD_NAME)?;
         let description = forms::get_required_form_text_field(&form, RaceSubtype::FIELD_DESCRIPTION)?;
+
+        if name.is_empty() {
+            return Err(forms::field_is_invalid_error(RaceSubtype::FIELD_NAME));
+        }
 
         Ok(RaceSubtype{ id, name, description })
     }

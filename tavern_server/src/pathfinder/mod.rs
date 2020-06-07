@@ -15,6 +15,7 @@ use std::hash::Hash;
 use tavern_derive::{Display, FromStr};
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum Gender {
     Male,
     Female,
@@ -22,6 +23,7 @@ pub enum Gender {
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum Size {
     Fine,
     Diminutive,
@@ -35,6 +37,7 @@ pub enum Size {
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum Alignment {
     LawfulGood,
     LawfulNeutral,
@@ -48,6 +51,7 @@ pub enum Alignment {
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, PartialOrd, Ord, Hash, PartialEq, Eq, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum Attribute {
     Strength,
     Dexterity,
@@ -60,6 +64,7 @@ pub enum Attribute {
 pub type Attributes = BTreeMap<Attribute, i16>;
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, PartialOrd, Ord, Hash, PartialEq, Eq, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum Skill {
     Acrobatics,
     Appraise,
@@ -102,6 +107,7 @@ pub type Skills = BTreeMap<Skill, i16>;
 #[derive(DbEnum, Debug)]
 // TODO: Revise code to allow for storing data (i16) with the enum instead of separate types
 #[derive(Serialize, Deserialize, Display, FromStr, PartialOrd, Ord, Hash, PartialEq, Eq, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum SaveThrow {
     Fortitude,
     Reflex,
@@ -109,6 +115,7 @@ pub enum SaveThrow {
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, PartialOrd, Ord, Hash, PartialEq, Eq, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum CharacterStat {
     Name,
     Race,
@@ -126,6 +133,7 @@ pub enum CharacterStat {
 pub type CharacterStats = BTreeMap<CharacterStat, i16>;
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, PartialOrd, Ord, Hash, PartialEq, Eq, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum CombatStat {
     MeleeAttackBonus,
     RangedAttackBonus,
@@ -146,6 +154,7 @@ pub enum CombatStat {
 pub type CombatStats = BTreeMap<CombatStat, i16>;
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum EquipmentSlot {
     Armor,
     Belts,
@@ -165,6 +174,7 @@ pub enum EquipmentSlot {
 }
 
 #[derive(DbEnum, Debug, Serialize, Deserialize, Display, FromStr, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum DamageType {
     Bludgeoning,
     Slashing,

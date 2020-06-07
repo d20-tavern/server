@@ -24,13 +24,22 @@ ifeq (${CARGO_COVERAGE}, true)
 	RUSTFLAGS=${RUSTFLAGS} -Cpanic=abort -Zpanic_abort_tests -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off
 endif
 
-all: test test-db
+all: test-db
 
 postgres:
 	@if which systemctl &> /dev/null && ! systemctl is-active postgresql; then\
 		echo "Starting postgresql";\
 		sudo systemctl start postgresql;\
 	fi
+
+# The double sudo is not an error: it prompts for root privileges to run the command as user
+# postgres, rather than asking for user postgres' password.
+
+init-dev-db: postgres
+	sudo sudo -u postgres psql \
+		-c "CREATE DATABASE tavern_test;" \
+		-c "CREATE USER ${TAVERN_DB_USER} WITH PASSWORD '${TAVERN_DB_PASS}'" \
+		-c "GRANT ALL PRIVILEGES ON ${TAVERN_DB_NAME} TO ${TAVERN_DB_USER};"
 
 rustup:
 	@if ! which rustup &> /dev/null; then\
@@ -60,3 +69,6 @@ test-db: ${RUSTUP_TARGET} postgres
 
 clean: ${RUSTUP_TARGET}
 	${CARGO_COMMAND} clean
+
+run: ${RUSTUP_TARGET} postgres
+	${CARGO_COMMAND} run
