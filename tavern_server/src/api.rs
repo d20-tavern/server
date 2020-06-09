@@ -106,7 +106,7 @@ pub trait DeleteById {
 
 impl<T> DeleteById for T where T: db::DeleteById + 'static {
     fn delete_by_id(parent_id: Option<Uuid>) -> BoxedFilter<(Box<dyn Reply>,)> {
-        async fn delete_item<U>((conn, this_id, parent_id): (Connection, Uuid, Option<Uuid>)) -> Result<Box<dyn Reply>, Rejection> where U: db::DeleteById + 'static {
+        async fn delete_item<U>((conn, this_id, _parent_id): (Connection, Uuid, Option<Uuid>)) -> Result<Box<dyn Reply>, Rejection> where U: db::DeleteById + 'static {
             U::db_delete_by_id(&this_id, &conn)?;
             Ok(Box::new(Status::new(&StatusCode::OK)))
         }

@@ -503,13 +503,13 @@ pub fn derive_delete_by_id(input: TokenStream) -> TokenStream {
 
     let result = quote! {
         impl crate::db::DeleteById for #name {
-            fn db_delete_by_id(id: &uuid::Uuid, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
+            fn db_delete_by_id(by_id: &uuid::Uuid, conn: &crate::db::Connection) -> Result<(), crate::db::Error> {
                 use diesel::prelude::*;
                 use crate::schema::#table::dsl::*;
                 use crate::diesel::ExpressionMethods;
                 use crate::diesel::RunQueryDsl;
                 use crate::diesel::QueryDsl;
-                diesel::delete(#table.filter(#id_field.eq(id)))
+                diesel::delete(#table.filter(#id_field.eq(by_id)))
                     .execute(conn)
                     .map_err(crate::db::Error::RunQuery)
                     .map(|_| ())

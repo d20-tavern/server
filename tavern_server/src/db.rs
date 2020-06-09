@@ -1,7 +1,7 @@
 use crate::status::{self, Error as StatusError};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use diesel::result::Error as DieselError;
+use diesel::result::{DatabaseErrorKind, DatabaseErrorInformation, Error as DieselError};
 use lazy_static::lazy_static;
 use std::fmt::{self, Display};
 use std::sync::Arc;
@@ -166,7 +166,22 @@ impl From<DieselError> for Error {
 
 impl From<Error> for Rejection {
     fn from(err: Error) -> Self {
-        match err {
+        match &err {
+            Error::RunQuery(err) => {
+                match err {
+                    DieselError::DatabaseError(kind, info) => {
+                        match kind {
+                            DatabaseErrorKind::UniqueViolation => {
+                                let error = StatusError::new(format!("something else already has that {}", info.column_name().unwrap_or("value")));
+                                Status::with_data(&StatusCode::BAD_REQUEST, error).into()
+                            },
+                            _ => status::server_error_into_rejection(err.to_string())
+                        }
+                    },
+                    DieselError::NotFound => status::not_found(),
+                    _ => status::server_error_into_rejection(err.to_string()),
+                }
+            },
             Error::InvalidValues(list) => {
                 let error = StatusError::new(format!("invalid values for {}", list.join(", ")));
                 Status::with_data(&StatusCode::BAD_REQUEST, error).into()
